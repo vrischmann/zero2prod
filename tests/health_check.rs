@@ -1,6 +1,13 @@
+use once_cell::sync::Lazy;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use zero2prod::configuration::{get_configuration, DatabaseSettings};
+use zero2prod::telemetry;
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let subscriber = telemetry::get_subscriber("test".into(), "debug".into());
+    telemetry::init_subscriber(subscriber);
+});
 
 struct TestApp {
     pub address: String,
@@ -25,8 +32,14 @@ async fn connect_pool(config: &DatabaseSettings) -> PgPool {
 }
 
 async fn spawn_app() -> TestApp {
+    Lazy::force(&TRACING);
+
+    //
+
     let configuration = get_configuration().expect("Failed to read configuration");
     let pool = connect_pool(&configuration.database).await;
+
+    //
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
