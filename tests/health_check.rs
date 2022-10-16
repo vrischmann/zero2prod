@@ -11,7 +11,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 
     if std::env::var("TEST_LOG").is_ok() {
         let subscriber =
-            telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+            telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
         telemetry::init_subscriber(subscriber);
     } else {
         let subscriber =
