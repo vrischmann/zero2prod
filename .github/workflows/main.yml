@@ -17,6 +17,17 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: vincent
+          POSTGRES_PASSWORD: vincent
+          POSTGRES_DB: zero2prod
+        ports:
+          - 5432:5432
+
     steps:
       # Needed for coverage
       - run: rustup component add llvm-tools-preview
