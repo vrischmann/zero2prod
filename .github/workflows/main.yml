@@ -54,8 +54,8 @@ jobs:
           cargo install sqlx-cli --no-default-features --features rustls,sqlite || true
           cargo install grcov || true
 
-      # - name: Setup sqlx
-      #   run: sqlx database setup
+      - name: Setup sqlx
+        run: sqlx database setup
 
       - name: Build and test
         env:
