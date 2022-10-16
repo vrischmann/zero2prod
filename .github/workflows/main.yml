@@ -51,7 +51,7 @@ jobs:
 
       - name: Install tools
         run: |
-          cargo install sqlx-cli --no-default-features --features rustls,sqlite || true
+          cargo install sqlx-cli --no-default-features --features rustls,postgres || true
           cargo install grcov || true
 
       - name: Setup sqlx
