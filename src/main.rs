@@ -6,6 +6,8 @@ use zero2prod::startup::run;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let configuration = get_configuration().expect("Failed to read configuration");
     let pool = PgPool::connect(&configuration.database.connection_string())
         .await
