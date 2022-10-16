@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use zero2prod::configuration::{get_configuration, DatabaseSettings};
@@ -10,7 +11,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 
     if std::env::var("TEST_LOG").is_ok() {
         let subscriber =
-            telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+            telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::sink);
         telemetry::init_subscriber(subscriber);
     } else {
         let subscriber =
@@ -27,7 +28,7 @@ struct TestApp {
 const TABLES: &[&str] = &["subscriptions"];
 
 async fn connect_pool(config: &DatabaseSettings) -> PgPool {
-    let pool = PgPool::connect(&config.connection_string())
+    let pool = PgPool::connect(&config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to PostgreSQL");
 
