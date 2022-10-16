@@ -5,8 +5,18 @@ use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::telemetry;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
-    let subscriber = telemetry::get_subscriber("test".into(), "debug".into());
-    telemetry::init_subscriber(subscriber);
+    let default_filter_level = "info".into();
+    let subscriber_name = "test".into();
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber =
+            telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        telemetry::init_subscriber(subscriber);
+    } else {
+        let subscriber =
+            telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+        telemetry::init_subscriber(subscriber);
+    }
 });
 
 struct TestApp {
