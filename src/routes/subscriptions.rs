@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
 use tracing::Instrument;
@@ -10,12 +10,16 @@ pub struct FormData {
     email: String,
 }
 
-pub async fn subscribe(pool: web::Data<PgPool>, form: web::Form<FormData>) -> impl Responder {
-    let request_id = Uuid::new_v4();
-
-    let request_span = tracing::info_span!("Adding a new subscriber", %request_id, subscriber_email=%form.email, subscriber_name=%form.name);
-    let _request_span_guard = request_span.enter();
-
+#[tracing::instrument(
+    name = "Adding a new subscriber",
+    skip(form, pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+        subscriber_email = %form.email,
+        subscriber_name = %form.name
+    )
+)]
+pub async fn subscribe(pool: web::Data<PgPool>, form: web::Form<FormData>) -> HttpResponse {
     let query_span = tracing::info_span!("Saving new subscriber details in the database");
 
     match sqlx::query!(
@@ -31,20 +35,10 @@ pub async fn subscribe(pool: web::Data<PgPool>, form: web::Form<FormData>) -> im
     .instrument(query_span)
     .await
     {
-        Ok(_) => {
-            tracing::info!(
-                "request_id={} New subscriber details have been saved",
-                request_id
-            );
-            HttpResponse::Ok()
-        }
+        Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => {
-            tracing::error!(
-                "request_id={} unable to insert into subscriptions, err: {:?}",
-                request_id,
-                err
-            );
-            HttpResponse::InternalServerError()
+            tracing::error!("unable to insert into subscriptions, err: {:?}", err);
+            HttpResponse::InternalServerError().finish()
         }
     }
 }
