@@ -21,8 +21,6 @@ sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-r
 config = "0.13"
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4.15"
-env_logger = "0.9"
-log = "0.4"
 
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
