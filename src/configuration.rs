@@ -40,6 +40,11 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
             "configuration.yaml",
             config::FileFormat::Yaml,
         ))
+        .add_source(
+            config::Environment::default()
+                .try_parsing(true)
+                .separator("_"),
+        )
         .build()?;
 
     settings.try_deserialize::<Settings>()

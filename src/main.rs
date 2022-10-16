@@ -14,6 +14,9 @@ async fn main() -> io::Result<()> {
     //
 
     let configuration = get_configuration().expect("Failed to read configuration");
+
+    tracing::info!(application_host=%configuration.application.host, "got configuration");
+
     let pool = PgPool::connect(configuration.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to PostgreSQL");
