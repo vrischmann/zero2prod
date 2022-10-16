@@ -1,17 +1,32 @@
 use sqlx::PgPool;
 use std::net::TcpListener;
-use zero2prod::configuration::get_configuration;
+use zero2prod::configuration::{get_configuration, DatabaseSettings};
 
 struct TestApp {
     pub address: String,
     pub pool: PgPool,
 }
 
-async fn spawn_app() -> TestApp {
-    let configuration = get_configuration().expect("Failed to read configuration");
-    let pool = PgPool::connect(&configuration.database.connection_string())
+const TABLES: &[&str] = &["subscriptions"];
+
+async fn connect_pool(config: &DatabaseSettings) -> PgPool {
+    let pool = PgPool::connect(&config.connection_string())
         .await
         .expect("Failed to connect to PostgreSQL");
+
+    for table in TABLES {
+        sqlx::query(&format!("TRUNCATE {}", table))
+            .execute(&pool)
+            .await
+            .expect("Failed to truncate everything");
+    }
+
+    pool
+}
+
+async fn spawn_app() -> TestApp {
+    let configuration = get_configuration().expect("Failed to read configuration");
+    let pool = connect_pool(&configuration.database).await;
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
