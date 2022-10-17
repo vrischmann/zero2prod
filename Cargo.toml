@@ -1,5 +1,8 @@
 [package]
 name = "zero2prod"
+description = "zero2prod"
+authors = ["Vincent Rischmann"]
+license = "Proprietary"
 version = "0.1.0"
 edition = "2021"
 
