@@ -12,9 +12,6 @@ install-tools:
 test:
 	cargo test
 
-build-deb:
-	RUSTFLAGS="-C target-cpu=ivybridge" cargo deb --target x86_64-unknown-linux-musl --no-strip
-
 cover:
 	RUSTFLAGS="-Cinstrument-coverage" cargo build
 	RUSTFLAGS="-Cinstrument-coverage" LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test
