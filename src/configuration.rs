@@ -37,10 +37,10 @@ impl DatabaseSettings {
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let settings = config::Config::builder()
         .add_source(
-            config::File::new("configuration.yaml", config::FileFormat::Yaml).required(false),
+            config::File::new("configuration.yml", config::FileFormat::Yaml).required(false),
         )
         .add_source(
-            config::File::new("/etc/zero2prod.yaml", config::FileFormat::Yaml).required(false),
+            config::File::new("/etc/zero2prod.yml", config::FileFormat::Yaml).required(false),
         )
         .add_source(
             config::Environment::default()
