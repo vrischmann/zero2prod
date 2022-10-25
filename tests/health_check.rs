@@ -115,6 +115,7 @@ async fn subscribe_returns_400_when_data_is_invalid() {
         ("email=ursula_le_guin%40gmail.com", "missing the name"),
         ("", "missing both name and email"),
         ("name=&email=ursula_le_guin%40gmail.com", "name is empty"),
+        ("name=le%20guin&email=", "email is empty"),
         (
             const_str::concat!(
                 "name=",
