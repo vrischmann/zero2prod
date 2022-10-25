@@ -386,6 +386,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-str"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa6c093bf913e73cd79b842dba96371d00e9989e8c54330526df63e38f83131f"
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2557,6 +2563,7 @@ dependencies = [
  "actix-web",
  "chrono",
  "config",
+ "const-str",
  "once_cell",
  "reqwest",
  "secrecy",
@@ -2568,6 +2575,7 @@ dependencies = [
  "tracing-bunyan-formatter",
  "tracing-log",
  "tracing-subscriber",
+ "unicode-segmentation",
  "uuid",
 ]
 
