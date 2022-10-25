@@ -115,6 +115,14 @@ async fn subscribe_returns_400_when_data_is_missing() {
         ("email=ursula_le_guin%40gmail.com", "missing the name"),
         ("", "missing both name and email"),
         ("name=&email=ursula_le_guin%40gmail.com", "name is empty"),
+        (
+            const_str::concat!(
+                "name=",
+                const_str::repeat!("a", 300),
+                "&email=ursula_le_guin%40gmail.com"
+            ),
+            "name is too long",
+        ),
     ];
 
     for (invalid_body, error_message) in test_cases {
