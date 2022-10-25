@@ -114,6 +114,7 @@ async fn subscribe_returns_400_when_data_is_missing() {
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%40gmail.com", "missing the name"),
         ("", "missing both name and email"),
+        ("name=&email=ursula_le_guin%40gmail.com", "name is empty"),
     ];
 
     for (invalid_body, error_message) in test_cases {
@@ -128,7 +129,7 @@ async fn subscribe_returns_400_when_data_is_missing() {
         assert_eq!(
             400,
             response.status().as_u16(),
-            "The API did not fail with a 400 when the payload was {}.",
+            "The API did not fail with a 400. failure condition={}",
             error_message
         )
     }
