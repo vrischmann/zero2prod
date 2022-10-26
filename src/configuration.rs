@@ -1,9 +1,11 @@
+use crate::domain::SubscriberEmail;
 use secrecy::{ExposeSecret, Secret};
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSetttings,
+    pub tem: TEMSettings,
 }
 
 #[derive(serde::Deserialize)]
@@ -31,6 +33,24 @@ impl DatabaseSettings {
             self.port,
             self.database_name
         ))
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct TEMSettings {
+    pub base_url: String,
+    pub auth_key: Secret<String>,
+    pub project_id: String,
+    pub sender_email: String,
+}
+
+impl TEMSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender_email.clone())
+    }
+
+    pub fn project_id(&self) -> crate::tem::ProjectId {
+        crate::tem::ProjectId::new(self.project_id.clone())
     }
 }
 

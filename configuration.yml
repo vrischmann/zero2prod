@@ -7,3 +7,8 @@ database:
   username: "vincent"
   password: "vincent"
   database_name: zero2prod
+tem:
+  base_url: "https://api.scaleway.com/transactional-email/v1alpha1/regions/fr-par"
+  project_id: "myprojectid"
+  auth_key: "myauthkey"
+  sender_email: "vincent@zero2prod.rischmann.fr"

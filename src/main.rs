@@ -6,6 +6,7 @@ use std::time::Duration;
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::run;
 use zero2prod::telemetry;
+use zero2prod::tem;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -24,9 +25,20 @@ async fn main() -> io::Result<()> {
         .await
         .expect("Failed to connect to PostgreSQL");
 
+    let sender_email = configuration
+        .tem
+        .sender()
+        .expect("Invalid sender email address");
+    let tem_client = tem::Client::new(
+        configuration.tem.base_url.clone(),
+        configuration.tem.project_id(),
+        configuration.tem.auth_key.clone(),
+        sender_email,
+    );
+
     let listener = TcpListener::bind(&format!(
         "{}:{}",
         configuration.application.host, configuration.application.port
     ))?;
-    run(listener, pool)?.await
+    run(listener, pool, tem_client)?.await
 }
