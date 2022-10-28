@@ -11,15 +11,15 @@ impl ProjectId {
 }
 
 #[derive(serde::Serialize)]
-struct SendEmailRequestRecipient {
-    email: String,
-    name: Option<String>,
+struct SendEmailRequestRecipient<'a> {
+    email: &'a str,
+    name: Option<&'a str>,
 }
 
 #[derive(serde::Serialize)]
-struct SendEmailRequest {
-    from: SendEmailRequestRecipient,
-    to: Vec<SendEmailRequestRecipient>,
+struct SendEmailRequest<'a> {
+    from: SendEmailRequestRecipient<'a>,
+    to: Vec<SendEmailRequestRecipient<'a>>,
     subject: String,
     text: String,
     html: String,
@@ -62,11 +62,11 @@ impl Client {
 
         let body = SendEmailRequest {
             from: SendEmailRequestRecipient {
-                email: self.sender.as_ref().to_string(),
-                name: Some("Vincent".to_string()),
+                email: self.sender.as_ref(),
+                name: Some("Vincent"),
             },
             to: vec![SendEmailRequestRecipient {
-                email: recipient.as_ref().to_string(),
+                email: recipient.as_ref(),
                 name: None,
             }],
             project_id: self.project_id.clone(),
