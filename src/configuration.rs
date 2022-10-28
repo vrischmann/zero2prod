@@ -42,6 +42,7 @@ pub struct TEMSettings {
     pub auth_key: Secret<String>,
     pub project_id: String,
     pub sender_email: String,
+    pub timeout_milliseconds: u64,
 }
 
 impl TEMSettings {
@@ -51,6 +52,10 @@ impl TEMSettings {
 
     pub fn project_id(&self) -> crate::tem::ProjectId {
         crate::tem::ProjectId::new(self.project_id.clone())
+    }
+
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
     }
 }
 

@@ -12,3 +12,4 @@ tem:
   project_id: "myprojectid"
   auth_key: "myauthkey"
   sender_email: "vincent@zero2prod.rischmann.fr"
+  timeout_milliseconds: 10000

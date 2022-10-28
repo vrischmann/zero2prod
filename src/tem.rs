@@ -42,11 +42,9 @@ impl Client {
         project_id: ProjectId,
         auth_key: Secret<String>,
         sender: SubscriberEmail,
+        timeout: Duration,
     ) -> Self {
-        let http_client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(1))
-            .build()
-            .unwrap();
+        let http_client = reqwest::Client::builder().timeout(timeout).build().unwrap();
 
         Self {
             http_client,
@@ -141,7 +139,13 @@ mod tests {
     fn email_client(base_url: String) -> Client {
         let project_id = ProjectId(Uuid::new_v4().to_string());
 
-        Client::new(base_url, project_id, Secret::new(Faker.fake()), email())
+        Client::new(
+            base_url,
+            project_id,
+            Secret::new(Faker.fake()),
+            email(),
+            Duration::from_millis(100),
+        )
     }
 
     #[tokio::test]

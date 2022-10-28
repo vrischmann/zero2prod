@@ -67,6 +67,7 @@ async fn spawn_app() -> TestApp {
         configuration.tem.project_id(),
         configuration.tem.auth_key.clone(),
         sender_email,
+        configuration.tem.timeout(),
     );
 
     let server = zero2prod::startup::run(listener, pool.clone(), tem_client)

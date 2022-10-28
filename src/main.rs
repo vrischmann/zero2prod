@@ -34,6 +34,7 @@ async fn main() -> io::Result<()> {
         configuration.tem.project_id(),
         configuration.tem.auth_key.clone(),
         sender_email,
+        configuration.tem.timeout(),
     );
 
     let listener = TcpListener::bind(&format!(
