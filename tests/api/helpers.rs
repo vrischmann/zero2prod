@@ -54,7 +54,7 @@ pub async fn spawn_app() -> TestApp {
 
     let pool = app.pool.clone();
     for table in TABLES {
-        sqlx::query(&format!("TRUNCATE {}", table))
+        sqlx::query(&format!("TRUNCATE {} CASCADE", table))
             .execute(&pool)
             .await
             .expect("Failed to truncate everything");
