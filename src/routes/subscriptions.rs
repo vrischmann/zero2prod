@@ -1,4 +1,5 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::startup::ApplicationBaseUrl;
 use crate::tem;
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
@@ -13,13 +14,14 @@ pub struct FormData {
 
 #[tracing::instrument(
     name = "Adding a new subscriber",
-    skip(pool, email_client, form),
+    skip(base_url, pool, email_client, form),
     fields(
         subscriber_email = %form.email,
         subscriber_name = %form.name
     )
 )]
 pub async fn subscribe(
+    base_url: web::Data<ApplicationBaseUrl>,
     pool: web::Data<PgPool>,
     email_client: web::Data<tem::Client>,
     form: web::Form<FormData>,
@@ -33,7 +35,7 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
-    if send_confirmation_email(&email_client, new_subscriber)
+    if send_confirmation_email(&base_url, &email_client, new_subscriber)
         .await
         .is_err()
     {
@@ -47,13 +49,17 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Send a confirmation email to a new subscriber",
-    skip(email_client)
+    skip(base_url, email_client)
 )]
 async fn send_confirmation_email(
+    base_url: &ApplicationBaseUrl,
     email_client: &tem::Client,
     new_subscriber: NewSubscriber,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://foobar.com/subscriptions/confirm";
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token=mytoken",
+        base_url.0
+    );
 
     let html_content = format!(
         r#"
