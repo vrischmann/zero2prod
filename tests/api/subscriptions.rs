@@ -1,4 +1,4 @@
-use crate::helpers::{spawn_app, ApiBody, SubscriptionBody};
+use crate::helpers::{spawn_app, SubscriptionBody, UrlEncodedBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;

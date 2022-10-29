@@ -84,9 +84,9 @@ pub struct SubscriptionBody {
     pub email: String,
 }
 
-impl ApiBody for SubscriptionBody {}
+impl UrlEncodedBody for SubscriptionBody {}
 
-pub trait ApiBody
+pub trait UrlEncodedBody
 where
     Self: serde::Serialize,
 {
