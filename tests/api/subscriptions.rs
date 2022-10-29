@@ -37,9 +37,29 @@ async fn subscribe_returns_200_for_valid_form_data() {
     //
 
     assert_eq!(200, response.status().as_u16());
+}
+
+#[tokio::test]
+async fn subscribe_persists_the_new_subscriber() {
+    let app = spawn_app().await;
+
+    let body = Body {
+        name: Name().fake(),
+        email: SafeEmail().fake(),
+    };
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    let _ = app.post_subscriptions(body.encode()).await;
+
+    //
 
     let saved = sqlx::query!(
-        "SELECT email, name FROM subscriptions WHERE email = $1",
+        "SELECT email, name, status FROM subscriptions WHERE email = $1",
         &body.email
     )
     .fetch_one(&app.pool)
@@ -48,6 +68,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
     assert_eq!(saved.email, body.email);
     assert_eq!(saved.name, body.name);
+    assert_eq!(saved.status, "pending_confirmation");
 }
 
 #[tokio::test]
