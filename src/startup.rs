@@ -66,6 +66,10 @@ fn run(
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(crate::routes::health_check))
             .route("/subscriptions", web::post().to(crate::routes::subscribe))
+            .route(
+                "/subscriptions/confirm",
+                web::get().to(crate::routes::confirm),
+            )
             .app_data(pool.clone())
             .app_data(email_client.clone())
     })
