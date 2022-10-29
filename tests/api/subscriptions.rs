@@ -11,6 +11,12 @@ struct Body {
     email: String,
 }
 
+impl Body {
+    fn encode(&self) -> String {
+        serde_urlencoded::to_string(self).expect("Failed to encode body")
+    }
+}
+
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
@@ -26,16 +32,19 @@ async fn subscribe_returns_200_for_valid_form_data() {
         .mount(&app.email_server)
         .await;
 
-    let response = app
-        .post_subscriptions(serde_urlencoded::to_string(&body).expect("Failed to encode body"))
-        .await;
+    let response = app.post_subscriptions(body.encode()).await;
+
+    //
 
     assert_eq!(200, response.status().as_u16());
 
-    let saved = sqlx::query!("SELECT email, name FROM subscriptions")
-        .fetch_one(&app.pool)
-        .await
-        .expect("Failed to fetch saved subscription.");
+    let saved = sqlx::query!(
+        "SELECT email, name FROM subscriptions WHERE email = $1",
+        &body.email
+    )
+    .fetch_one(&app.pool)
+    .await
+    .expect("Failed to fetch saved subscription.");
 
     assert_eq!(saved.email, body.email);
     assert_eq!(saved.name, body.name);
@@ -61,6 +70,8 @@ async fn subscribe_returns_400_when_data_is_invalid() {
         ),
     ];
 
+    //
+
     for (invalid_body, error_message) in test_cases {
         let response = app.post_subscriptions(invalid_body.into()).await;
         assert_eq!(
@@ -76,11 +87,10 @@ async fn subscribe_returns_400_when_data_is_invalid() {
 async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     let app = spawn_app().await;
 
-    let body = serde_urlencoded::to_string(Body {
+    let body = Body {
         name: Name().fake(),
         email: SafeEmail().fake(),
-    })
-    .expect("Failed to encode body");
+    };
 
     Mock::given(path("/emails"))
         .and(method("POST"))
@@ -89,5 +99,7 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
         .mount(&app.email_server)
         .await;
 
-    let _ = app.post_subscriptions(body).await;
+    //
+
+    let _ = app.post_subscriptions(body.encode()).await;
 }
