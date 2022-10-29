@@ -30,16 +30,35 @@ pub async fn subscribe(
     };
 
     if insert_subscriber(&pool, &new_subscriber).await.is_err() {
-
         return HttpResponse::InternalServerError().finish();
     }
+
+    //
+
+    let confirmation_link = "https://foobar.com/subscriptions/confirm";
+
+    let html_content = format!(
+        r#"
+Welcome to our newsletter!<br/>
+Click <a href="{}">here</a> to confirm your subscription.
+    "#,
+        confirmation_link
+    );
+
+    let text_content = format!(
+        r#"
+Welcome to our newsletter!<br/>
+Visit {} to confirm your subscription.
+    "#,
+        confirmation_link
+    );
 
     if email_client
         .send_email(
             new_subscriber.email,
             "Welcome!",
-            "Welcome to our newsletter!",
-            "Welcome to our newsletter!",
+            &html_content,
+            &text_content,
         )
         .await
         .is_err()
