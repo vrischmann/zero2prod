@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 use sqlx::PgPool;
+use wiremock::MockServer;
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::Application;
 use zero2prod::telemetry;
@@ -22,6 +23,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub address: String,
     pub pool: PgPool,
+    pub email_server: MockServer,
 }
 
 impl TestApp {
@@ -43,8 +45,11 @@ pub async fn spawn_app() -> TestApp {
 
     //
 
+    let email_server = MockServer::start().await;
+
     let mut configuration = get_configuration().expect("Failed to read configuration");
     configuration.application.port = 0;
+    configuration.tem.base_url = email_server.uri();
 
     let app = Application::build(configuration)
         .await
@@ -54,6 +59,8 @@ pub async fn spawn_app() -> TestApp {
 
     let pool = app.pool.clone();
     for table in TABLES {
+        tracing::warn!(%table, "truncating table");
+
         sqlx::query(&format!("TRUNCATE {} CASCADE", table))
             .execute(&pool)
             .await
@@ -64,5 +71,9 @@ pub async fn spawn_app() -> TestApp {
 
     let _ = tokio::spawn(app.run_until_stopped());
 
-    TestApp { address, pool }
+    TestApp {
+        address,
+        pool,
+        email_server,
+    }
 }

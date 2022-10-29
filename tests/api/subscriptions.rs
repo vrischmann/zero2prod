@@ -1,11 +1,34 @@
 use crate::helpers::spawn_app;
+use fake::faker::internet::en::SafeEmail;
+use fake::faker::name::en::Name;
+use fake::Fake;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, ResponseTemplate};
+
+#[derive(serde::Serialize)]
+struct Body {
+    name: String,
+    email: String,
+}
 
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
 
-    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let response = app.post_subscriptions(body.into()).await;
+    let body = Body {
+        name: Name().fake(),
+        email: SafeEmail().fake(),
+    };
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    let response = app
+        .post_subscriptions(serde_urlencoded::to_string(&body).expect("Failed to encode body"))
+        .await;
 
     assert_eq!(200, response.status().as_u16());
 
@@ -14,8 +37,8 @@ async fn subscribe_returns_200_for_valid_form_data() {
         .await
         .expect("Failed to fetch saved subscription.");
 
-    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
-    assert_eq!(saved.name, "le guin");
+    assert_eq!(saved.email, body.email);
+    assert_eq!(saved.name, body.name);
 }
 
 #[tokio::test]
@@ -47,4 +70,24 @@ async fn subscribe_returns_400_when_data_is_invalid() {
             error_message
         )
     }
+}
+
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_for_valid_data() {
+    let app = spawn_app().await;
+
+    let body = serde_urlencoded::to_string(Body {
+        name: Name().fake(),
+        email: SafeEmail().fake(),
+    })
+    .expect("Failed to encode body");
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let _ = app.post_subscriptions(body).await;
 }
