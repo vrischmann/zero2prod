@@ -55,6 +55,7 @@ impl Client {
         }
     }
 
+    #[tracing::instrument(name = "Send an email", skip(self, html_content, text_content))]
     pub async fn send_email(
         &self,
         recipient: SubscriberEmail,
@@ -79,13 +80,22 @@ impl Client {
             html: html_content.to_string(),
         };
 
-        self.http_client
+        let response = self
+            .http_client
             .post(url)
             .header("X-Auth-Token", self.auth_key.expose_secret())
             .json(&body)
             .send()
             .await?
             .error_for_status()?;
+
+        let response_body = response.text().await?;
+
+        tracing::event!(
+            tracing::Level::WARN,
+            response_body = response_body,
+            "sent email"
+        );
 
         Ok(())
     }
