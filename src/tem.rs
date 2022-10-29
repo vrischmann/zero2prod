@@ -1,6 +1,7 @@
 use crate::domain::SubscriberEmail;
 use secrecy::{ExposeSecret, Secret};
 use std::time::Duration;
+use tracing::{event, Level};
 
 #[derive(Clone, serde::Serialize)]
 pub struct ProjectId(String);
@@ -91,11 +92,7 @@ impl Client {
 
         let response_body = response.text().await?;
 
-        tracing::event!(
-            tracing::Level::WARN,
-            response_body = response_body,
-            "sent email"
-        );
+        event!(Level::INFO, response_body = response_body, "sent email");
 
         Ok(())
     }

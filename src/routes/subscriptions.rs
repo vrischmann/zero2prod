@@ -4,6 +4,7 @@ use crate::tem;
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use rand::Rng;
+use tracing::{event, Level};
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -86,6 +87,8 @@ async fn send_confirmation_email(
         "{}/subscriptions/confirm?subscription_token={}",
         base_url.0, subscription_token
     );
+
+    event!(Level::INFO, confirmation_link, "computed confirmation link");
 
     let html_content = format!(
         r#"
