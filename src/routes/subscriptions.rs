@@ -3,6 +3,7 @@ use crate::startup::ApplicationBaseUrl;
 use crate::tem;
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
+use rand::Rng;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -35,7 +36,7 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
-    if send_confirmation_email(&base_url, &email_client, new_subscriber)
+    if send_confirmation_email(&base_url, &email_client, new_subscriber, "mytoken")
         .await
         .is_err()
     {
@@ -55,10 +56,11 @@ async fn send_confirmation_email(
     base_url: &ApplicationBaseUrl,
     email_client: &tem::Client,
     new_subscriber: NewSubscriber,
+    subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
     let confirmation_link = format!(
-        "{}/subscriptions/confirm?subscription_token=mytoken",
-        base_url.0
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url.0, subscription_token
     );
 
     let html_content = format!(
@@ -123,4 +125,27 @@ async fn insert_subscriber(
         err
     })?;
     Ok(())
+}
+
+fn generate_subscription_token() -> String {
+    let mut rng = rand::thread_rng();
+
+    let mut token = String::new();
+    for _ in 0..25 {
+        let n = rng.sample(rand::distributions::Alphanumeric);
+        let c = char::from(n);
+        token.push(c);
+    }
+    token
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_subscription_token_is_25_chars_long() {
+        let token = generate_subscription_token();
+        assert_eq!(token.len(), 25);
+    }
 }
