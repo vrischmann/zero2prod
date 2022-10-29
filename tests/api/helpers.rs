@@ -77,3 +77,20 @@ pub async fn spawn_app() -> TestApp {
         email_server,
     }
 }
+
+#[derive(serde::Serialize)]
+pub struct SubscriptionBody {
+    pub name: String,
+    pub email: String,
+}
+
+impl ApiBody for SubscriptionBody {}
+
+pub trait ApiBody
+where
+    Self: serde::Serialize,
+{
+    fn encode(&self) -> String {
+        serde_urlencoded::to_string(self).expect("Failed to encode body")
+    }
+}

@@ -1,27 +1,15 @@
-use crate::helpers::spawn_app;
+use crate::helpers::{spawn_app, ApiBody, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
-#[derive(serde::Serialize)]
-struct Body {
-    name: String,
-    email: String,
-}
-
-impl Body {
-    fn encode(&self) -> String {
-        serde_urlencoded::to_string(self).expect("Failed to encode body")
-    }
-}
-
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
 
-    let body = Body {
+    let body = SubscriptionBody {
         name: Name().fake(),
         email: SafeEmail().fake(),
     };
@@ -43,7 +31,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
 async fn subscribe_persists_the_new_subscriber() {
     let app = spawn_app().await;
 
-    let body = Body {
+    let body = SubscriptionBody {
         name: Name().fake(),
         email: SafeEmail().fake(),
     };
@@ -108,7 +96,7 @@ async fn subscribe_returns_400_when_data_is_invalid() {
 async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     let app = spawn_app().await;
 
-    let body = Body {
+    let body = SubscriptionBody {
         name: Name().fake(),
         email: SafeEmail().fake(),
     };
@@ -129,7 +117,7 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 async fn subscribe_sends_a_confirmation_email_with_a_link() {
     let app = spawn_app().await;
 
-    let body = Body {
+    let body = SubscriptionBody {
         name: Name().fake(),
         email: SafeEmail().fake(),
     };
