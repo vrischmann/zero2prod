@@ -33,8 +33,26 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
+    if send_confirmation_email(&email_client, new_subscriber)
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    }
+
     //
 
+    HttpResponse::Ok().finish()
+}
+
+#[tracing::instrument(
+    name = "Send a confirmation email to a new subscriber",
+    skip(email_client)
+)]
+async fn send_confirmation_email(
+    email_client: &tem::Client,
+    new_subscriber: NewSubscriber,
+) -> Result<(), reqwest::Error> {
     let confirmation_link = "https://foobar.com/subscriptions/confirm";
 
     let html_content = format!(
@@ -53,7 +71,7 @@ Visit {} to confirm your subscription.
         confirmation_link
     );
 
-    if email_client
+    email_client
         .send_email(
             new_subscriber.email,
             "Welcome!",
@@ -61,12 +79,6 @@ Visit {} to confirm your subscription.
             &text_content,
         )
         .await
-        .is_err()
-    {
-        return HttpResponse::InternalServerError().finish();
-    }
-
-    HttpResponse::Ok().finish()
 }
 
 impl TryFrom<FormData> for NewSubscriber {
