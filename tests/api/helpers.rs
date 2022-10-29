@@ -20,8 +20,14 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     }
 });
 
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub text: reqwest::Url,
+}
+
 pub struct TestApp {
     pub address: String,
+    pub port: u16,
     pub pool: PgPool,
     pub email_server: MockServer,
 }
@@ -35,6 +41,35 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        let get_link = |s: &str| -> reqwest::Url {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+
+            assert_eq!(links.len(), 1, "expected 1 link, got {}", links.len());
+
+            let raw_link = links[0].as_str();
+
+            let mut confirmation_link = reqwest::Url::parse(raw_link).unwrap();
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+            confirmation_link.set_port(Some(self.port)).unwrap();
+
+            confirmation_link
+        };
+
+        let html_link = get_link(body["html"].as_str().unwrap());
+        let text_link = get_link(body["text"].as_str().unwrap());
+
+        ConfirmationLinks {
+            html: html_link,
+            text: text_link,
+        }
     }
 }
 
@@ -54,6 +89,7 @@ pub async fn spawn_app() -> TestApp {
     let app = Application::build(configuration)
         .await
         .expect("Failed to build application");
+    let app_port = app.port;
 
     let address = format!("http://127.0.0.1:{}", app.port);
 
@@ -73,6 +109,7 @@ pub async fn spawn_app() -> TestApp {
 
     TestApp {
         address,
+        port: app_port,
         pool,
         email_server,
     }
