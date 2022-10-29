@@ -10,6 +10,8 @@ use std::net::TcpListener;
 use std::time::Duration;
 use tracing_actix_web::TracingLogger;
 
+pub struct ApplicationBaseUrl(pub String);
+
 pub struct Application {
     pub port: u16,
     pub pool: PgPool,
@@ -43,7 +45,12 @@ impl Application {
         ))?;
         let port = listener.local_addr().unwrap().port();
 
-        let server = run(listener, pool.clone(), tem_client)?;
+        let server = run(
+            listener,
+            pool.clone(),
+            tem_client,
+            ApplicationBaseUrl(configuration.application.base_url),
+        )?;
 
         Ok(Self { port, pool, server })
     }
@@ -57,9 +64,11 @@ fn run(
     listener: TcpListener,
     pool: PgPool,
     email_client: tem::Client,
+    base_url: ApplicationBaseUrl,
 ) -> Result<Server, io::Error> {
     let pool = web::Data::new(pool);
     let email_client = web::Data::new(email_client);
+    let base_url = web::Data::new(base_url);
 
     let server = HttpServer::new(move || {
         App::new()
@@ -72,6 +81,7 @@ fn run(
             )
             .app_data(pool.clone())
             .app_data(email_client.clone())
+            .app_data(base_url.clone())
     })
     .listen(listener)?
     .run();
