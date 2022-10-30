@@ -26,6 +26,10 @@ impl Application {
             .await
             .expect("Failed to connect to PostgreSQL");
 
+        Application::build_with_pool(configuration, pool).await
+    }
+
+    pub async fn build_with_pool(configuration: Settings, pool: PgPool) -> Result<Self, io::Error> {
         let sender_email = configuration
             .tem
             .sender()
