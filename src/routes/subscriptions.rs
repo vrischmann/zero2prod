@@ -2,6 +2,7 @@ use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::startup::ApplicationBaseUrl;
 use crate::tem;
 use actix_web::{web, HttpResponse};
+use askama::Template;
 use chrono::Utc;
 use rand::Rng;
 use tracing::{event, Level};
@@ -73,6 +74,18 @@ pub async fn subscribe(
     HttpResponse::Ok().finish()
 }
 
+#[derive(askama::Template)]
+#[template(path = "html_content.html")]
+struct HtmlContentTemplate<'a> {
+    confirmation_link: &'a str,
+}
+
+#[derive(askama::Template)]
+#[template(path = "text_content.txt")]
+struct TextContentTemplate<'a> {
+    confirmation_link: &'a str,
+}
+
 #[tracing::instrument(
     name = "Send a confirmation email to a new subscriber",
     skip(base_url, email_client)
@@ -90,28 +103,20 @@ async fn send_confirmation_email(
 
     event!(Level::INFO, confirmation_link, "computed confirmation link");
 
-    let html_content = format!(
-        r#"
-Welcome to our newsletter!<br/>
-Click <a href="{}">here</a> to confirm your subscription.
-    "#,
-        confirmation_link
-    );
+    let html_content = HtmlContentTemplate {
+        confirmation_link: &confirmation_link,
+    };
 
-    let text_content = format!(
-        r#"
-Welcome to our newsletter!<br/>
-Visit {} to confirm your subscription.
-    "#,
-        confirmation_link
-    );
+    let text_content = TextContentTemplate {
+        confirmation_link: &confirmation_link,
+    };
 
     email_client
         .send_email(
             new_subscriber.email,
             "Welcome!",
-            &html_content,
-            &text_content,
+            &html_content.render().unwrap(),
+            &text_content.render().unwrap(),
         )
         .await
 }
