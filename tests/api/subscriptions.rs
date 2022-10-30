@@ -5,9 +5,9 @@ use fake::Fake;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
-#[tokio::test]
-async fn subscribe_returns_200_for_valid_form_data() {
-    let app = spawn_app().await;
+#[sqlx::test]
+async fn subscribe_returns_200_for_valid_form_data(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -27,9 +27,9 @@ async fn subscribe_returns_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 }
 
-#[tokio::test]
-async fn subscribe_persists_the_new_subscriber() {
-    let app = spawn_app().await;
+#[sqlx::test]
+async fn subscribe_persists_the_new_subscriber(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -59,9 +59,9 @@ async fn subscribe_persists_the_new_subscriber() {
     assert_eq!(saved.status, "pending_confirmation");
 }
 
-#[tokio::test]
-async fn subscribe_returns_400_when_data_is_invalid() {
-    let app = spawn_app().await;
+#[sqlx::test]
+async fn subscribe_returns_400_when_data_is_invalid(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
 
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
@@ -92,9 +92,9 @@ async fn subscribe_returns_400_when_data_is_invalid() {
     }
 }
 
-#[tokio::test]
-async fn subscribe_sends_a_confirmation_email_for_valid_data() {
-    let app = spawn_app().await;
+#[sqlx::test]
+async fn subscribe_sends_a_confirmation_email_for_valid_data(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -113,9 +113,9 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     let _ = app.post_subscriptions(body.encode()).await;
 }
 
-#[tokio::test]
-async fn subscribe_sends_a_confirmation_email_with_a_link() {
-    let app = spawn_app().await;
+#[sqlx::test]
+async fn subscribe_sends_a_confirmation_email_with_a_link(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
