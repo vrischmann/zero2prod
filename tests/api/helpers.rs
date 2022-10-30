@@ -73,8 +73,6 @@ impl TestApp {
     }
 }
 
-const TABLES: &[&str] = &["subscriptions"];
-
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
@@ -94,14 +92,6 @@ pub async fn spawn_app() -> TestApp {
     let address = format!("http://127.0.0.1:{}", app.port);
 
     let pool = app.pool.clone();
-    for table in TABLES {
-        tracing::warn!(%table, "truncating table");
-
-        sqlx::query(&format!("TRUNCATE {} CASCADE", table))
-            .execute(&pool)
-            .await
-            .expect("Failed to truncate everything");
-    }
 
     //
 
