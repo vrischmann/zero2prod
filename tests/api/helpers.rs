@@ -73,7 +73,7 @@ impl TestApp {
     }
 }
 
-pub async fn spawn_app() -> TestApp {
+pub async fn spawn_app(pool: sqlx::PgPool) -> TestApp {
     Lazy::force(&TRACING);
 
     //
@@ -84,7 +84,7 @@ pub async fn spawn_app() -> TestApp {
     configuration.application.port = 0;
     configuration.tem.base_url = email_server.uri();
 
-    let app = Application::build(configuration)
+    let app = Application::build_with_pool(configuration, pool)
         .await
         .expect("Failed to build application");
     let app_port = app.port;
