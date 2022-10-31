@@ -170,7 +170,6 @@ fn generate_subscription_token() -> String {
     token
 }
 
-#[derive(Debug)]
 struct StoreTokenError(sqlx::Error);
 
 impl actix_web::error::ResponseError for StoreTokenError {}
@@ -181,6 +180,18 @@ impl fmt::Display for StoreTokenError {
             f,
             "A database error was encountered while trying to store a subscription token"
         )
+    }
+}
+
+impl fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
     }
 }
 
@@ -207,6 +218,16 @@ async fn store_token(
         StoreTokenError(err)
     })?;
 
+    Ok(())
+}
+
+fn error_chain_fmt(err: &impl std::error::Error, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    writeln!(f, "{}\n", err)?;
+    let mut current = err.source();
+    while let Some(cause) = current {
+        writeln!(f, "Caused by:\n\t{}", cause)?;
+        current = cause.source();
+    }
     Ok(())
 }
 
