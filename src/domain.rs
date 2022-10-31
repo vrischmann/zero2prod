@@ -1,3 +1,4 @@
+use std::fmt;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::validate_email;
 
@@ -42,6 +43,12 @@ impl SubscriberEmail {
         } else {
             Err(format!("{} is not a valid subscriber email", s))
         }
+    }
+}
+
+impl fmt::Display for SubscriberEmail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
