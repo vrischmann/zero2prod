@@ -1,4 +1,5 @@
 use crate::configuration::Settings;
+use crate::routes;
 use crate::tem;
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
@@ -77,12 +78,10 @@ fn run(
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
-            .route("/health_check", web::get().to(crate::routes::health_check))
-            .route("/subscriptions", web::post().to(crate::routes::subscribe))
-            .route(
-                "/subscriptions/confirm",
-                web::get().to(crate::routes::confirm),
-            )
+            .route("/health_check", web::get().to(routes::health_check))
+            .route("/subscriptions", web::post().to(routes::subscribe))
+            .route("/subscriptions/confirm", web::get().to(routes::confirm))
+            .route("/newsletters", web::post().to(routes::publish_newsletter))
             .app_data(pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())

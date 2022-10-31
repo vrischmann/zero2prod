@@ -1,4 +1,5 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::routes::error_chain_fmt;
 use crate::startup::ApplicationBaseUrl;
 use crate::tem;
 use actix_web::http::StatusCode;
@@ -133,7 +134,7 @@ async fn send_confirmation_email(
 
     email_client
         .send_email(
-            new_subscriber.email,
+            &new_subscriber.email,
             "Welcome!",
             &html_content.render().unwrap(),
             &text_content.render().unwrap(),
@@ -230,16 +231,6 @@ async fn store_token(
     .await
     .map_err(StoreTokenError)?;
 
-    Ok(())
-}
-
-fn error_chain_fmt(err: &impl std::error::Error, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    writeln!(f, "{}\n", err)?;
-    let mut current = err.source();
-    while let Some(cause) = current {
-        writeln!(f, "Caused by:\n\t{}", cause)?;
-        current = cause.source();
-    }
     Ok(())
 }
 
