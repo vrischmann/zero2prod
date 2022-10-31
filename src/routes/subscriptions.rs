@@ -49,7 +49,7 @@ impl From<String> for SubscribeError {
 //
 
 #[tracing::instrument(
-    name = "Adding a new subscriber",
+    name = "Subscribe",
     skip(base_url, pool, email_client, form),
     fields(
         subscriber_email = %form.email,
@@ -109,10 +109,7 @@ struct TextContentTemplate<'a> {
     confirmation_link: &'a str,
 }
 
-#[tracing::instrument(
-    name = "Send a confirmation email to a new subscriber",
-    skip(base_url, email_client)
-)]
+#[tracing::instrument(name = "Send confirmation email", skip(base_url, email_client))]
 async fn send_confirmation_email(
     base_url: &ApplicationBaseUrl,
     email_client: &tem::Client,
@@ -155,10 +152,7 @@ impl TryFrom<FormData> for NewSubscriber {
     }
 }
 
-#[tracing::instrument(
-    name = "Saving new subscriber details in the database",
-    skip(tx, new_subscriber)
-)]
+#[tracing::instrument(name = "Insert subscriber", skip(tx, new_subscriber))]
 async fn insert_subscriber(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     new_subscriber: &crate::domain::NewSubscriber,
