@@ -24,6 +24,9 @@ anyhow = "1"
 claim = "0.5"
 fake = "~2.3"
 
+# Crypto
+sha3 = "0.9"
+
 # Web server, web client and async runtime
 actix-web = "4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
