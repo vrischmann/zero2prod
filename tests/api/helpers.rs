@@ -47,13 +47,24 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        let (username, password) = self.test_user().await;
+
         reqwest::Client::new()
             .post(&format!("{}/newsletters", &self.address))
-            .basic_auth(Uuid::new_v4().to_string(), Some(Uuid::new_v4().to_string()))
+            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    async fn test_user(&self) -> (String, String) {
+        let row = sqlx::query!("SELECT username, password FROM users LIMIT 1")
+            .fetch_one(&self.pool)
+            .await
+            .expect("Failed to create test users");
+
+        (row.username, row.password)
     }
 
     pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
@@ -108,6 +119,10 @@ pub async fn spawn_app(pool: sqlx::PgPool) -> TestApp {
 
     //
 
+    add_test_user(&pool).await;
+
+    //
+
     let _ = tokio::spawn(app.run_until_stopped());
 
     TestApp {
@@ -116,6 +131,21 @@ pub async fn spawn_app(pool: sqlx::PgPool) -> TestApp {
         pool,
         email_server,
     }
+}
+
+async fn add_test_user(pool: &sqlx::PgPool) {
+    sqlx::query!(
+        r#"
+        INSERT INTO users(user_id, username, password)
+        VALUES ($1, $2, $3)
+        "#,
+        Uuid::new_v4(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to create test users");
 }
 
 #[derive(serde::Serialize)]

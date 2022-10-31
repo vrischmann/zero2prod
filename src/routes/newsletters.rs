@@ -7,9 +7,10 @@ use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
 use anyhow::{anyhow, Context};
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 use std::fmt;
 use tracing::error;
+use uuid::Uuid;
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
@@ -55,6 +56,14 @@ pub struct Content {
     text: String,
 }
 
+#[tracing::instrument(
+    name = "Publish newsletter",
+    skip(pool, email_client, request, body),
+    fields(
+        username = tracing::field::Empty,
+        user_id = tracing::field::Empty
+    )
+)]
 pub async fn publish_newsletter(
     pool: web::Data<sqlx::PgPool>,
     email_client: web::Data<tem::Client>,
@@ -62,6 +71,10 @@ pub async fn publish_newsletter(
     body: web::Json<BodyData>,
 ) -> Result<HttpResponse, PublishError> {
     let credentials = basic_authentication(request.headers()).map_err(PublishError::Auth)?;
+    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+
+    let user_id = validate_credentials(&pool, credentials).await?;
+    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
     let subscribers = get_confirmed_subscribers(&pool).await?;
     for subscriber in subscribers {
@@ -114,6 +127,30 @@ async fn get_confirmed_subscribers(
     .collect();
 
     Ok(result)
+}
+
+async fn validate_credentials(
+    pool: &sqlx::PgPool,
+    credentials: Credentials,
+) -> Result<Uuid, PublishError> {
+    let user_id: Option<_> = sqlx::query!(
+        r#"
+        SELECT user_id
+        FROM users
+        WHERE username = $1 AND password = $2
+        "#,
+        credentials.username,
+        credentials.password.expose_secret(),
+    )
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform a query to validate auth credentials")
+    .map_err(PublishError::Unexpected)?;
+
+    user_id
+        .map(|row| row.user_id)
+        .ok_or_else(|| anyhow!("Invalid username or password"))
+        .map_err(PublishError::Auth)
 }
 
 struct Credentials {
