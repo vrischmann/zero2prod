@@ -170,11 +170,7 @@ async fn insert_subscriber(
         "pending_confirmation",
     )
     .execute(tx)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(subscriber_id)
 }
@@ -232,10 +228,7 @@ async fn store_token(
     )
     .execute(tx)
     .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        StoreTokenError(err)
-    })?;
+    .map_err(StoreTokenError)?;
 
     Ok(())
 }
