@@ -25,7 +25,7 @@ claim = "0.5"
 fake = "~2.3"
 
 # Crypto
-sha3 = "0.9"
+argon2 = { version = "0.4", features = ["std"] }
 
 # Web server, web client and async runtime
 actix-web = "4"
