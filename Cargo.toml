@@ -19,8 +19,6 @@ name = "zero2prod"
 claim = "0.5"
 fake = "~2.3"
 
-config = "0.13"
-
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4.15"
 
@@ -42,6 +40,9 @@ tracing-bunyan-formatter = "0.3"
 tracing-log = "0.1"
 tracing-actix-web = "0.6"
 
+thiserror = "1"
+
+config = "0.13"
 secrecy = { version = "0.8", features = ["serde"] }
 validator = "0.14"
 askama = "0.11"
