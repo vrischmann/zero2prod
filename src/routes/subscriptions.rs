@@ -1,6 +1,7 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::startup::ApplicationBaseUrl;
 use crate::tem;
+use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse};
 use askama::Template;
 use chrono::Utc;
@@ -13,6 +14,54 @@ use uuid::Uuid;
 pub struct FormData {
     name: String,
     email: String,
+}
+
+#[derive(Debug)]
+pub enum SubscribeError {
+    Validation(String),
+    Database(sqlx::Error),
+    StoreToken(StoreTokenError),
+    SendEmail(reqwest::Error),
+}
+
+impl fmt::Display for SubscribeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Failed to create a new subscriber")
+    }
+}
+
+impl std::error::Error for SubscribeError {}
+
+impl actix_web::ResponseError for SubscribeError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::Validation(_) => StatusCode::BAD_REQUEST,
+            Self::Database(_) | Self::StoreToken(_) | Self::SendEmail(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        }
+    }
+}
+
+impl From<reqwest::Error> for SubscribeError {
+    fn from(e: reqwest::Error) -> Self {
+        Self::SendEmail(e)
+    }
+}
+impl From<sqlx::Error> for SubscribeError {
+    fn from(e: sqlx::Error) -> Self {
+        Self::Database(e)
+    }
+}
+impl From<StoreTokenError> for SubscribeError {
+    fn from(e: StoreTokenError) -> Self {
+        Self::StoreToken(e)
+    }
+}
+impl From<String> for SubscribeError {
+    fn from(e: String) -> Self {
+        Self::Validation(e)
+    }
 }
 
 #[tracing::instrument(
@@ -28,42 +77,26 @@ pub async fn subscribe(
     pool: web::Data<sqlx::PgPool>,
     email_client: web::Data<tem::Client>,
     form: web::Form<FormData>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let mut tx = match pool.begin().await {
-        Ok(tx) => tx,
-        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
-    };
+) -> Result<HttpResponse, SubscribeError> {
+    let mut tx = pool.begin().await?;
 
-    let new_subscriber = match form.0.try_into() {
-        Ok(subscriber) => subscriber,
-        Err(_) => return Ok(HttpResponse::BadRequest().finish()),
-    };
-
-    let subscriber_id = match insert_subscriber(&mut tx, &new_subscriber).await {
-        Ok(subscriber_id) => subscriber_id,
-        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
-    };
+    let new_subscriber = form.0.try_into()?;
+    let subscriber_id = insert_subscriber(&mut tx, &new_subscriber).await?;
 
     let subscription_token = generate_subscription_token();
     store_token(&mut tx, subscriber_id, &subscription_token).await?;
 
-    if tx.commit().await.is_err() {
-        return Ok(HttpResponse::InternalServerError().finish());
-    }
+    tx.commit().await?;
 
     //
 
-    if send_confirmation_email(
+    send_confirmation_email(
         &base_url,
         &email_client,
         new_subscriber,
         &subscription_token,
     )
-    .await
-    .is_err()
-    {
-        return Ok(HttpResponse::InternalServerError().finish());
-    }
+    .await?;
 
     //
 
@@ -170,9 +203,7 @@ fn generate_subscription_token() -> String {
     token
 }
 
-struct StoreTokenError(sqlx::Error);
-
-impl actix_web::error::ResponseError for StoreTokenError {}
+pub struct StoreTokenError(sqlx::Error);
 
 impl fmt::Display for StoreTokenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
