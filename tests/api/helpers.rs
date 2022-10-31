@@ -9,6 +9,8 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     let default_filter_level = "info".into();
     let subscriber_name = "test".into();
 
+    std::env::set_var("RUST_LOG", "sqlx=error,info");
+
     if std::env::var("TEST_LOG").is_ok() {
         let subscriber =
             telemetry::get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
