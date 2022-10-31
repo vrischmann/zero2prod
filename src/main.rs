@@ -12,7 +12,11 @@ async fn main() -> io::Result<()> {
 
     let configuration = get_configuration().expect("Failed to read configuration");
 
-    tracing::info!(application_host=%configuration.application.host, "got configuration");
+    tracing::info!(
+        application_host = %configuration.application.host,
+        application_port = %configuration.application.port,
+        "got configuration",
+    );
 
     let app = Application::build(configuration).await?;
     app.run_until_stopped().await?;
