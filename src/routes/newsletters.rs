@@ -7,8 +7,8 @@ use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
 use anyhow::{anyhow, Context};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use secrecy::{ExposeSecret, Secret};
-use sha3::Digest;
 use std::fmt;
 use tracing::error;
 use uuid::Uuid;
@@ -134,27 +134,41 @@ async fn validate_credentials(
     pool: &sqlx::PgPool,
     credentials: Credentials,
 ) -> Result<Uuid, PublishError> {
-    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
-    let password_hash = format!("{:x}", password_hash);
-
-    let user_id: Option<_> = sqlx::query!(
+    let row: Option<_> = sqlx::query!(
         r#"
-        SELECT user_id
+        SELECT user_id, password_hash
         FROM users
-        WHERE username = $1 AND password_hash = $2
+        WHERE username = $1
         "#,
         credentials.username,
-        password_hash,
     )
     .fetch_optional(pool)
     .await
-    .context("Failed to perform a query to validate auth credentials")
+    .context("Failed to perform a query to retrieve stored credentials")
     .map_err(PublishError::Unexpected)?;
 
-    user_id
-        .map(|row| row.user_id)
-        .ok_or_else(|| anyhow!("Invalid username or password"))
-        .map_err(PublishError::Auth)
+    let (user_id, expected_password_hash) = match row {
+        Some(row) => (row.user_id, row.password_hash),
+        None => {
+            return Err(PublishError::Auth(anyhow!("Unknown username")));
+        }
+    };
+
+    //
+
+    let expected_password_hash = PasswordHash::new(&expected_password_hash)
+        .context("Failed to parse hash in PHC string format")
+        .map_err(PublishError::Unexpected)?;
+
+    Argon2::default()
+        .verify_password(
+            credentials.password.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
+        .context("Invalid password")
+        .map_err(PublishError::Auth)?;
+
+    Ok(user_id)
 }
 
 struct Credentials {
