@@ -59,7 +59,7 @@ impl Client {
     #[tracing::instrument(name = "Send an email", skip(self, html_content, text_content))]
     pub async fn send_email(
         &self,
-        recipient: SubscriberEmail,
+        recipient: &SubscriberEmail,
         subject: &str,
         html_content: &str,
         text_content: &str,
@@ -167,7 +167,7 @@ mod tests {
             .await;
 
         let result = client
-            .send_email(email(), &subject(), &content(), &content())
+            .send_email(&email(), &subject(), &content(), &content())
             .await;
 
         assert_ok!(result);
@@ -185,7 +185,7 @@ mod tests {
             .await;
 
         let result = client
-            .send_email(email(), &subject(), &content(), &content())
+            .send_email(&email(), &subject(), &content(), &content())
             .await;
 
         assert_err!(result);
@@ -205,7 +205,7 @@ mod tests {
             .await;
 
         let result = client
-            .send_email(email(), &subject(), &content(), &content())
+            .send_email(&email(), &subject(), &content(), &content())
             .await;
 
         assert_err!(result);
@@ -227,7 +227,7 @@ mod tests {
             .await;
 
         let _ = client
-            .send_email(email(), &subject(), &content(), &content())
+            .send_email(&email(), &subject(), &content(), &content())
             .await;
     }
 }
