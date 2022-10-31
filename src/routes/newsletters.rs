@@ -81,22 +81,19 @@ struct ConfirmedSubscriber {
 async fn get_confirmed_subscribers(
     pool: &sqlx::PgPool,
 ) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    let rows = sqlx::query!(
+    let result = sqlx::query!(
         r#"
         SELECT email FROM subscriptions WHERE status = 'confirmed'
         "#,
     )
     .fetch_all(pool)
-    .await?;
-
-    let mut result = Vec::new();
-    for row in rows {
-        // TODO(vincent): refactor
-        result.push(match SubscriberEmail::parse(row.email) {
-            Ok(email) => Ok(ConfirmedSubscriber { email }),
-            Err(err) => Err(anyhow!(err)),
-        })
-    }
+    .await?
+    .into_iter()
+    .map(|r| match SubscriberEmail::parse(r.email) {
+        Ok(email) => Ok(ConfirmedSubscriber { email }),
+        Err(err) => Err(anyhow!(err)),
+    })
+    .collect();
 
     Ok(result)
 }
