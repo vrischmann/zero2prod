@@ -143,3 +143,23 @@ async fn subscribe_sends_a_confirmation_email_with_a_link(pool: sqlx::PgPool) {
         confirmation_links.html, confirmation_links.text
     );
 }
+
+#[sqlx::test]
+async fn subscribe_fails_if_there_is_a_fatal_database_error(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
+
+    // Sabotage the database
+    sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token")
+        .execute(&app.pool)
+        .await
+        .unwrap();
+
+    let body = SubscriptionBody {
+        name: Name().fake(),
+        email: SafeEmail().fake(),
+    };
+
+    let response = app.post_subscriptions(body.encode()).await;
+
+    assert_eq!(response.status().as_u16(), 500);
+}
