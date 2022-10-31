@@ -2838,6 +2838,7 @@ dependencies = [
  "actix-web",
  "anyhow",
  "askama",
+ "base64",
  "chrono",
  "claim",
  "config",
