@@ -29,12 +29,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
         },
     });
 
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .json(&newsletter_request_body)
-        .send()
-        .await
-        .expect("Failed to execute request");
+    let response = app.post_newsletters(newsletter_request_body).await;
 
     assert_eq!(response.status().as_u16(), 200);
 }
@@ -51,6 +46,8 @@ async fn newsletters_are_delivered_to_unconfirmed_subscribers(pool: sqlx::PgPool
         .mount(&app.email_server)
         .await;
 
+    //
+
     let newsletter_request_body = json!({
         "title": "Newsletter title",
         "content": {
@@ -59,14 +56,46 @@ async fn newsletters_are_delivered_to_unconfirmed_subscribers(pool: sqlx::PgPool
         },
     });
 
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .json(&newsletter_request_body)
-        .send()
-        .await
-        .expect("Failed to execute request");
+    let response = app.post_newsletters(newsletter_request_body).await;
 
     assert_eq!(response.status().as_u16(), 200);
+}
+
+#[sqlx::test]
+async fn newsletters_returns_400_for_invalid_data(pool: sqlx::PgPool) {
+    let app = spawn_app(pool).await;
+
+    let test_cases = vec![
+        (
+            json!({
+                "content": {"text":"Text","html":"HTML"},
+            }),
+            "missing title",
+        ),
+        (
+            json!({
+                "title":"My newsletter",
+            }),
+            "missing title",
+        ),
+    ];
+
+    //
+
+    for (invalid_body, case) in test_cases {
+        let response = app.post_newsletters(invalid_body).await;
+
+        let response_status = response.status();
+        let response_body = response.text().await.expect("Failed to get response body");
+
+        println!("response: {}", response_body);
+
+        assert_eq!(
+            response_status, 400,
+            "The API did not fail with a 400 Bad Request for case '{}'",
+            case,
+        )
+    }
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
