@@ -1,6 +1,7 @@
 use crate::configuration::Settings;
 use crate::routes;
 use crate::tem;
+use actix_files::Files;
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use secrecy::ExposeSecret;
@@ -85,6 +86,7 @@ fn run(
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
+            .service(Files::new("/static", "./static").prefer_utf8(true))
             .route("/health_check", web::get().to(routes::health_check))
             .route("/subscriptions", web::post().to(routes::subscribe))
             .route("/subscriptions/confirm", web::get().to(routes::confirm))
