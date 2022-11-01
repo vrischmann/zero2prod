@@ -73,7 +73,7 @@ fn verify_password_hash(
             password_candidate.expose_secret().as_bytes(),
             &expected_password_hash,
         )
-        .context("Invalid password")
+        .context("failed to verify password")
         .map_err(AuthError::InvalidCredentials)
 }
 
@@ -102,4 +102,3 @@ async fn get_stored_credentials(
         None => Ok(None),
     }
 }
-
