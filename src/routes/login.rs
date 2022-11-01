@@ -9,6 +9,7 @@ use askama::Template;
 use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, Secret};
 use std::fmt;
+use tracing::warn;
 
 #[derive(askama::Template)]
 #[template(path = "login.html.j2")]
@@ -18,12 +19,46 @@ pub struct LoginTemplate {
 
 #[derive(serde::Deserialize)]
 pub struct QueryParams {
-    error: Option<String>,
+    error: String,
+    tag: String,
 }
 
-pub async fn login_form(query: web::Query<QueryParams>) -> HttpResponse {
+impl QueryParams {
+    fn verify_error(self, hmac_secret: &HmacSecret) -> Result<String, anyhow::Error> {
+        let tag = hex::decode(self.tag)?;
+
+        let query_string = serde_urlencoded::to_string(&[("error", &self.error)]).unwrap();
+
+        let mut mac =
+            Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes()).unwrap();
+        mac.update(query_string.as_bytes());
+        mac.verify_slice(&tag)?;
+
+        Ok(self.error)
+    }
+}
+
+pub async fn login_form(
+    hmac_secret: web::Data<HmacSecret>,
+    query: Option<web::Query<QueryParams>>,
+) -> HttpResponse {
+    let error = match query {
+        Some(query) => match query.0.verify_error(&hmac_secret) {
+            Err(err) => {
+                warn!(
+                    error.message = %err,
+                    error.cause_chain = ?err,
+                    "Failed to verify query parameters using the HMAC tag"
+                );
+                None
+            }
+            Ok(error_message) => Some(error_message),
+        },
+        None => None,
+    };
+
     let tpl = LoginTemplate {
-        error_message: query.error.clone(),
+        error_message: error,
     };
 
     HttpResponse::Ok()
