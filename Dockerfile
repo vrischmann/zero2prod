@@ -8,6 +8,7 @@ RUN cargo install cargo-deb
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 COPY sqlx-data.json sqlx-data.json
+COPY templates templates
 COPY src src
 
 ENV RUSTFLAGS="-C target-cpu=ivybridge"
