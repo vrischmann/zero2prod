@@ -3,6 +3,10 @@
 {% block title %}Login{% endblock %}
 {% block content %}
 
+{% if let Some(msg) = error_message %}
+<p><i>{{ msg }}</i></p>
+{% endif %}
+
 <form action="/login" method="POST">
     <label>Username</label>
     <input type="text" placeholder="Enter Username" name="username">
