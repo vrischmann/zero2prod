@@ -3,7 +3,7 @@ use actix_web::http::header::ContentType;
 use askama::Template;
 
 #[derive(askama::Template)]
-#[template(path = "home.html")]
+#[template(path = "home.html.j2")]
 pub struct HomeTemplate {}
 
 pub async fn home() -> HttpResponse {

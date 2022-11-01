@@ -4,7 +4,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Home</title>
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+    <style>
+
+    </style>
 </head>
 
 <body>
@@ -13,9 +16,7 @@
             <a href="/subscribe">Subscribe</a>
         </header>
 
-        <div class="content">
-            <p>Welcome to our newsletter!</p>
-        </div>
+        <div class="content">{% block content %}{% endblock %}</div>
     </div>
 </body>
 
