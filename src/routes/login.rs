@@ -1,9 +1,10 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
+use crate::startup::HmacSecret;
+use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
-use actix_web::http::StatusCode;
 use actix_web::web;
-use actix_web::{HttpResponse, ResponseError};
+use actix_web::HttpResponse;
 use askama::Template;
 use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, Secret};
@@ -60,9 +61,9 @@ pub struct LoginFormData {
 )]
 pub async fn login(
     pool: web::Data<sqlx::PgPool>,
-    hmac_secret: web::Data<Secret<String>>,
+    hmac_secret: web::Data<HmacSecret>,
     form: web::Form<LoginFormData>,
-) -> HttpResponse {
+) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
         password: form.0.password,
@@ -81,25 +82,27 @@ pub async fn login(
 
             let hmac_tag = {
                 let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.expose_secret().as_bytes())
+                    Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes())
                         .unwrap();
                 mac.update(query_string.as_bytes());
                 mac.finalize().into_bytes()
             };
 
-            HttpResponse::SeeOther()
+            let response = HttpResponse::SeeOther()
                 .insert_header((
                     LOCATION,
                     format!("/login?{}&tag={:x}", query_string, hmac_tag),
                 ))
-                .finish()
+                .finish();
+
+            Err(InternalError::from_response(err, response))
         }
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
-            HttpResponse::SeeOther()
+            Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/"))
-                .finish()
+                .finish())
         }
     }
 }

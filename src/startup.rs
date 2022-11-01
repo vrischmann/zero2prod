@@ -4,6 +4,7 @@ use crate::tem;
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use secrecy::ExposeSecret;
+use secrecy::Secret;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::io;
@@ -12,6 +13,9 @@ use std::time::Duration;
 use tracing_actix_web::TracingLogger;
 
 pub struct ApplicationBaseUrl(pub String);
+
+#[derive(Clone)]
+pub struct HmacSecret(pub Secret<String>);
 
 pub struct Application {
     pub port: u16,
@@ -55,6 +59,7 @@ impl Application {
             pool.clone(),
             tem_client,
             ApplicationBaseUrl(configuration.application.base_url),
+            HmacSecret(configuration.application.hmac_secret),
         )?;
 
         Ok(Self { port, pool, server })
@@ -70,6 +75,7 @@ fn run(
     pool: PgPool,
     email_client: tem::Client,
     base_url: ApplicationBaseUrl,
+    hmac_secret: HmacSecret,
 ) -> Result<Server, io::Error> {
     let pool = web::Data::new(pool);
     let email_client = web::Data::new(email_client);
@@ -88,6 +94,7 @@ fn run(
             .app_data(pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
+            .app_data(hmac_secret.clone())
     })
     .listen(listener)?
     .run();

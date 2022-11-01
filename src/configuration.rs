@@ -13,6 +13,7 @@ pub struct ApplicationSetttings {
     pub host: String,
     pub port: u16,
     pub base_url: String,
+    pub hmac_secret: Secret<String>,
 }
 
 #[derive(serde::Deserialize)]
