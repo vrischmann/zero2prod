@@ -136,12 +136,21 @@ async fn validate_credentials(
     pool: &sqlx::PgPool,
     credentials: Credentials,
 ) -> Result<Uuid, PublishError> {
-    let (user_id, expected_password_hash) = get_stored_credentials(pool, &credentials.username)
+    let mut user_id = None;
+    let mut expected_password_hash = Secret::new(
+        "$argon2id$v=19$m=15000,t=2,p=1$\
+gZiV/M1gPc22ElAH/Jh1Hw$\
+CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+            .into(),
+    );
+
+    if let Some(stored_credentials) = get_stored_credentials(pool, &credentials.username)
         .await
         .map_err(PublishError::Unexpected)?
-        .ok_or_else(|| PublishError::Auth(anyhow!("Unknown username")))?;
-
-    //
+    {
+        user_id = Some(stored_credentials.0);
+        expected_password_hash = stored_credentials.1;
+    }
 
     //
 
@@ -154,7 +163,9 @@ async fn validate_credentials(
 
     verify_result?;
 
-    Ok(user_id)
+    //
+
+    user_id.ok_or_else(|| PublishError::Auth(anyhow!("Unknown username")))
 }
 
 #[tracing::instrument(

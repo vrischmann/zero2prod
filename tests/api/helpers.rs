@@ -144,7 +144,14 @@ impl TestUser {
 
     async fn store(&self, pool: &sqlx::PgPool) {
         let salt = SaltString::generate(&mut rand::thread_rng());
-        let password_hash = Argon2::default()
+
+        let hasher = Argon2::new(
+            argon2::Algorithm::Argon2id,
+            argon2::Version::V0x13,
+            argon2::Params::new(15000, 2, 1, None).unwrap(),
+        );
+
+        let password_hash = hasher
             .hash_password(self.password.as_bytes(), &salt)
             .unwrap()
             .to_string();
