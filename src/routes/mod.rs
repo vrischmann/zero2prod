@@ -4,10 +4,10 @@ use std::fmt;
 pub use subscriptions::*;
 pub use subscriptions_confirm::*;
 
-pub mod health_check;
-pub mod newsletters;
-pub mod subscriptions;
-pub mod subscriptions_confirm;
+mod health_check;
+mod newsletters;
+mod subscriptions;
+mod subscriptions_confirm;
 
 pub fn error_chain_fmt(err: &impl std::error::Error, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "{}\n", err)?;
