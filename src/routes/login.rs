@@ -10,10 +10,19 @@ use std::fmt;
 
 #[derive(askama::Template)]
 #[template(path = "login.html.j2")]
-pub struct LoginTemplate {}
+pub struct LoginTemplate {
+    error_message: Option<String>,
+}
 
-pub async fn login() -> HttpResponse {
-    let tpl = LoginTemplate {};
+#[derive(serde::Deserialize)]
+pub struct QueryParams {
+    error: Option<String>,
+}
+
+pub async fn login_form(query: web::Query<QueryParams>) -> HttpResponse {
+    let tpl = LoginTemplate {
+        error_message: query.error.clone(),
+    };
 
     HttpResponse::Ok()
         .content_type(ContentType::html())
@@ -36,10 +45,15 @@ impl fmt::Debug for LoginError {
 
 impl ResponseError for LoginError {
     fn status_code(&self) -> StatusCode {
-        match self {
-            Self::Auth(_) => StatusCode::UNAUTHORIZED,
-            Self::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+        StatusCode::SEE_OTHER
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        let encoded_error = serde_urlencoded::to_string(&[("error", self.to_string())]).unwrap();
+
+        HttpResponse::build(self.status_code())
+            .insert_header((LOCATION, format!("/login?{}", encoded_error)))
+            .finish()
     }
 }
 
@@ -50,7 +64,7 @@ pub struct LoginFormData {
 }
 
 #[tracing::instrument(name = "Do login", skip(pool, form))]
-pub async fn do_login(
+pub async fn login(
     pool: web::Data<sqlx::PgPool>,
     form: web::Form<LoginFormData>,
 ) -> Result<HttpResponse, LoginError> {
