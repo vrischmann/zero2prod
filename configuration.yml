@@ -2,6 +2,7 @@ application:
   host: 127.0.0.1
   port: 8000
   base_url: "http://127.0.0.1"
+  hmac_secret: "myhmacsecret"
 database:
   host: 127.0.0.1
   port: 5432

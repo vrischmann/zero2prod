@@ -26,6 +26,8 @@ fake = "~2.3"
 
 # Crypto
 argon2 = { version = "0.4", features = ["std"] }
+hmac = { version = "0.12", features = ["std"] }
+sha2 = "0.10"
 
 # Web server, web client and async runtime
 actix-web = "4"
@@ -36,6 +38,7 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
+hex = "0.4"
 
 # SQL on steroids
 sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "macros", "postgres", "uuid", "chrono", "migrate", "offline"] }
