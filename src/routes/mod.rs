@@ -1,4 +1,4 @@
-pub use health_check::*;
+use actix_web::HttpResponse;
 pub use home::*;
 pub use login::*;
 pub use newsletters::*;
@@ -6,7 +6,6 @@ use std::fmt;
 pub use subscriptions::*;
 pub use subscriptions_confirm::*;
 
-mod health_check;
 mod home;
 mod login;
 mod newsletters;
@@ -21,4 +20,8 @@ pub fn error_chain_fmt(err: &impl std::error::Error, f: &mut fmt::Formatter<'_>)
         current = cause.source();
     }
     Ok(())
+}
+
+pub async fn health_check() -> HttpResponse {
+    HttpResponse::Ok().finish()
 }
