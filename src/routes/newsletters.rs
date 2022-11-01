@@ -1,6 +1,6 @@
+use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::domain::SubscriberEmail;
 use crate::routes::error_chain_fmt;
-use crate::telemetry::spawn_blocking_with_tracing;
 use crate::tem;
 use actix_web::http::header;
 use actix_web::http::header::{HeaderMap, HeaderValue};
@@ -8,11 +8,9 @@ use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
 use anyhow::{anyhow, Context};
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 use std::fmt;
 use tracing::error;
-use uuid::Uuid;
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
@@ -75,7 +73,12 @@ pub async fn publish_newsletter(
     let credentials = basic_authentication(request.headers()).map_err(PublishError::Auth)?;
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
-    let user_id = validate_credentials(&pool, credentials).await?;
+    let user_id = validate_credentials(&pool, credentials)
+        .await
+        .map_err(|err| match err {
+            AuthError::InvalidCredentials(_) => PublishError::Auth(err.into()),
+            AuthError::Unexpected(_) => PublishError::Unexpected(err.into()),
+        })?;
     tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
     let subscribers = get_confirmed_subscribers(&pool).await?;
@@ -129,95 +132,6 @@ async fn get_confirmed_subscribers(
     .collect();
 
     Ok(result)
-}
-
-#[tracing::instrument(name = "Validate credentials", skip(pool, credentials))]
-async fn validate_credentials(
-    pool: &sqlx::PgPool,
-    credentials: Credentials,
-) -> Result<Uuid, PublishError> {
-    let mut user_id = None;
-    let mut expected_password_hash = Secret::new(
-        "$argon2id$v=19$m=15000,t=2,p=1$\
-gZiV/M1gPc22ElAH/Jh1Hw$\
-CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
-            .into(),
-    );
-
-    if let Some(stored_credentials) = get_stored_credentials(pool, &credentials.username)
-        .await
-        .map_err(PublishError::Unexpected)?
-    {
-        user_id = Some(stored_credentials.0);
-        expected_password_hash = stored_credentials.1;
-    }
-
-    //
-
-    let verify_result = spawn_blocking_with_tracing(move || {
-        verify_password_hash(expected_password_hash, credentials.password)
-    })
-    .await
-    .context("Failed to spawn blocking task")
-    .map_err(PublishError::Unexpected)?;
-
-    verify_result?;
-
-    //
-
-    user_id.ok_or_else(|| PublishError::Auth(anyhow!("Unknown username")))
-}
-
-#[tracing::instrument(
-    name = "Verify password hash",
-    skip(expected_password_hash, password_candidate)
-)]
-fn verify_password_hash(
-    expected_password_hash: Secret<String>,
-    password_candidate: Secret<String>,
-) -> Result<(), PublishError> {
-    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
-        .context("Failed to parse hash in PHC string format")
-        .map_err(PublishError::Unexpected)?;
-
-    Argon2::default()
-        .verify_password(
-            password_candidate.expose_secret().as_bytes(),
-            &expected_password_hash,
-        )
-        .context("Invalid password")
-        .map_err(PublishError::Auth)
-}
-
-#[tracing::instrument(name = "Get stored credentials", skip(pool))]
-async fn get_stored_credentials(
-    pool: &sqlx::PgPool,
-    username: &str,
-) -> Result<Option<(Uuid, Secret<String>)>, anyhow::Error> {
-    let row = sqlx::query!(
-        r#"
-        SELECT user_id, password_hash
-        FROM users
-        WHERE username = $1
-        "#,
-        username,
-    )
-    .fetch_optional(pool)
-    .await
-    .context("Failed to perform a query to retrieve stored credentials")?;
-
-    match row {
-        Some(row) => {
-            let result = (row.user_id, Secret::new(row.password_hash));
-            Ok(Some(result))
-        }
-        None => Ok(None),
-    }
-}
-
-struct Credentials {
-    username: String,
-    password: Secret<String>,
 }
 
 fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {

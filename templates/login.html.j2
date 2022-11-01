@@ -1,0 +1,14 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Login{% endblock %}
+{% block content %}
+
+<form action="/login" method="POST">
+    <label>Username</label>
+    <input type="text" placeholder="Enter Username" name="username">
+    <label>Password</label>
+    <input type="password" placeholder="Enter Password" name="password">
+    <button type="submit">Login</button>
+</form>
+
+{% endblock %}
