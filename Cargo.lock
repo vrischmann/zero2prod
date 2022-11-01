@@ -2882,6 +2882,7 @@ dependencies = [
  "config",
  "const-str",
  "fake",
+ "hex",
  "hmac",
  "linkify",
  "once_cell",
