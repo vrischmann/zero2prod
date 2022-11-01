@@ -1,5 +1,6 @@
 use crate::domain::SubscriberEmail;
 use crate::routes::error_chain_fmt;
+use crate::telemetry::spawn_blocking_with_tracing;
 use crate::tem;
 use actix_web::http::header;
 use actix_web::http::header::{HeaderMap, HeaderValue};
@@ -144,7 +145,7 @@ async fn validate_credentials(
 
     //
 
-    let verify_result = tokio::task::spawn_blocking(move || {
+    let verify_result = spawn_blocking_with_tracing(move || {
         verify_password_hash(expected_password_hash, credentials.password)
     })
     .await
