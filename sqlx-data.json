@@ -1,5 +1,19 @@
 {
   "db": "PostgreSQL",
+  "333ef18481598183cf78d9bc4be3d114891922b9d342d59c6ca49f8f07a431e1": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n            INSERT INTO users(user_id, username, password_hash)\n            VALUES ($1, $2, $3)\n            "
+  },
   "58f6679743dc8019e1d6e2cce04156e5266cb007f718033888b023948d195e3b": {
     "describe": {
       "columns": [
@@ -61,6 +75,16 @@
     },
     "query": "\n        INSERT INTO subscriptions(id, email, name, subscribed_at, status)\n        VALUES($1, $2, $3, $4, $5)"
   },
+  "a0f200e7ab4a9b23eee065f6f4f081fe3b255e572fa522667fb3836a65480484": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "ALTER TABLE subscriptions DROP COLUMN email"
+  },
   "a71a1932b894572106460ca2e34a63dc0cb8c1ba7a70547add1cddbb68133c2b": {
     "describe": {
       "columns": [],
@@ -72,6 +96,50 @@
       }
     },
     "query": "UPDATE subscriptions SET status = 'confirmed' WHERE id = $1"
+  },
+  "aa0445c107513863945f43341831ed03e685a19e5e1f2db7b8f9dee37643bd80": {
+    "describe": {
+      "columns": [
+        {
+          "name": "email",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n        SELECT email FROM subscriptions WHERE status = 'confirmed'\n        "
+  },
+  "acf1b96c82ddf18db02e71a0e297c822b46f10add52c54649cf599b883165e58": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "password_hash",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        SELECT user_id, password_hash\n        FROM users\n        WHERE username = $1\n        "
   },
   "ad120337ee606be7b8d87238e2bb765d0da8ee61b1a3bc142414c4305ec5e17f": {
     "describe": {
