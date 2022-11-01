@@ -1,0 +1,71 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --red-1: rgb(239 68 68);
+    --red-2: rgb(185 28 28);
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    width: 75%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+form>input {
+    padding: 0 1em 0 1em;
+    margin: 0.3em 0 0.8em 0;
+    height: 2.5em;
+    font-size: 15px;
+}
+
+form>button[type="submit"] {
+    height: 3em;
+    font-size: 15px;
+}
+
+form>label {
+    font-size: smaller;
+    margin-bottom: 5px;
+}
+
+.container {
+    padding-top: 2.5em;
+}
+
+.menu {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    column-gap: 4em;
+}
+
+.menu a {
+    padding: 1rem;
+    border-radius: 0.25em;
+    background-color: var(--red-1);
+    color: white;
+    text-decoration: none;
+}
+
+.menu a:hover {
+    background-color: var(--red-2);
+}
+
+.content {
+    padding-top: 1em;
+}
+
+form.login {
+    display: grid;
+    width: 30%;
+    grid-auto-flow: row;
+    row-gap: 0.3em;
+}

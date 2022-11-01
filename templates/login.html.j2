@@ -7,10 +7,10 @@
 <p><i>{{ msg }}</i></p>
 {% endif %}
 
-<form action="/login" method="POST">
-    <label>Username</label>
+<form class="login" action="/login" method="POST">
+    <label for="username">Username</label>
     <input type="text" placeholder="Enter Username" name="username">
-    <label>Password</label>
+    <label for="password">Password</label>
     <input type="password" placeholder="Enter Password" name="password">
     <button type="submit">Login</button>
 </form>
