@@ -5,7 +5,8 @@ use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpResponse, ResponseError};
 use askama::Template;
-use secrecy::Secret;
+use hmac::{Hmac, Mac};
+use secrecy::{ExposeSecret, Secret};
 use std::fmt;
 
 #[derive(askama::Template)]
@@ -43,31 +44,25 @@ impl fmt::Debug for LoginError {
     }
 }
 
-impl ResponseError for LoginError {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::SEE_OTHER
-    }
-
-    fn error_response(&self) -> HttpResponse {
-        let encoded_error = serde_urlencoded::to_string(&[("error", self.to_string())]).unwrap();
-
-        HttpResponse::build(self.status_code())
-            .insert_header((LOCATION, format!("/login?{}", encoded_error)))
-            .finish()
-    }
-}
-
 #[derive(serde::Deserialize)]
 pub struct LoginFormData {
     username: String,
     password: Secret<String>,
 }
 
-#[tracing::instrument(name = "Do login", skip(pool, form))]
+#[tracing::instrument(
+    name = "Do login",
+    skip(pool, hmac_secret, form),
+    fields(
+        username = tracing::field::Empty,
+        user_id = tracing::field::Empty,
+    )
+)]
 pub async fn login(
     pool: web::Data<sqlx::PgPool>,
+    hmac_secret: web::Data<Secret<String>>,
     form: web::Form<LoginFormData>,
-) -> Result<HttpResponse, LoginError> {
+) -> HttpResponse {
     let credentials = Credentials {
         username: form.0.username,
         password: form.0.password,
@@ -75,16 +70,36 @@ pub async fn login(
 
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
-    let user_id = validate_credentials(&pool, credentials)
-        .await
-        .map_err(|err| match err {
-            AuthError::InvalidCredentials(_) => LoginError::Auth(err.into()),
-            AuthError::Unexpected(_) => LoginError::Unexpected(err.into()),
-        })?;
+    match validate_credentials(&pool, credentials).await {
+        Err(err) => {
+            let err = match err {
+                AuthError::InvalidCredentials(_) => LoginError::Auth(err.into()),
+                AuthError::Unexpected(_) => LoginError::Unexpected(err.into()),
+            };
 
-    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+            let query_string = serde_urlencoded::to_string(&[("error", err.to_string())]).unwrap();
 
-    Ok(HttpResponse::SeeOther()
-        .insert_header((LOCATION, "/"))
-        .finish())
+            let hmac_tag = {
+                let mut mac =
+                    Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.expose_secret().as_bytes())
+                        .unwrap();
+                mac.update(query_string.as_bytes());
+                mac.finalize().into_bytes()
+            };
+
+            HttpResponse::SeeOther()
+                .insert_header((
+                    LOCATION,
+                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
+                ))
+                .finish()
+        }
+        Ok(user_id) => {
+            tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+
+            HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/"))
+                .finish()
+        }
+    }
 }
