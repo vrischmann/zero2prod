@@ -3,9 +3,9 @@
 {% block title %}Login{% endblock %}
 {% block content %}
 
-{% if let Some(msg) = error_message %}
+{% for msg in error_messages %}
 <p><i>{{ msg }}</i></p>
-{% endif %}
+{% endfor %}
 
 <form class="login" action="/login" method="POST">
     <label for="username">Username</label>
