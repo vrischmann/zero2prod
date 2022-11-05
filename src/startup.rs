@@ -4,8 +4,9 @@ use crate::tem;
 use actix_files::Files;
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
-use secrecy::ExposeSecret;
-use secrecy::Secret;
+use actix_web_flash_messages::storage::CookieMessageStore;
+use actix_web_flash_messages::FlashMessagesFramework;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::io;
@@ -81,10 +82,16 @@ fn run(
     let pool = web::Data::new(pool);
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(base_url);
-    let hmac_secret = web::Data::new(hmac_secret);
+
+    let cookie_message_store_signing_key =
+        actix_web::cookie::Key::from(hmac_secret.0.expose_secret().as_bytes());
+    let flash_messages_store =
+        CookieMessageStore::builder(cookie_message_store_signing_key).build();
+    let flash_messages_framework = FlashMessagesFramework::builder(flash_messages_store).build();
 
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(flash_messages_framework.clone())
             .wrap(TracingLogger::default())
             .service(Files::new("/static", "./static").prefer_utf8(true))
             .route("/health_check", web::get().to(routes::health_check))
