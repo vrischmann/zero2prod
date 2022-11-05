@@ -179,14 +179,3 @@ pub struct SubscriptionBody {
     pub name: String,
     pub email: String,
 }
-
-impl UrlEncodedBody for SubscriptionBody {}
-
-pub trait UrlEncodedBody
-where
-    Self: serde::Serialize,
-{
-    fn encode(&self) -> String {
-        serde_urlencoded::to_string(self).expect("Failed to encode body")
-    }
-}
