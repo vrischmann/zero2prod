@@ -27,7 +27,7 @@ impl QueryParams {
     fn verify_error(self, hmac_secret: &HmacSecret) -> Result<String, anyhow::Error> {
         let tag = hex::decode(self.tag)?;
 
-        let query_string = serde_urlencoded::to_string(&[("error", &self.error)]).unwrap();
+        let query_string = serde_urlencoded::to_string([("error", &self.error)]).unwrap();
 
         let mut mac =
             Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes()).unwrap();
