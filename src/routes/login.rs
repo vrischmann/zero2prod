@@ -88,7 +88,7 @@ pub struct LoginFormData {
 
 #[tracing::instrument(
     name = "Do login",
-    skip(pool, hmac_secret, form),
+    skip(pool, form),
     fields(
         username = tracing::field::Empty,
         user_id = tracing::field::Empty,
@@ -96,7 +96,6 @@ pub struct LoginFormData {
 )]
 pub async fn login(
     pool: web::Data<sqlx::PgPool>,
-    hmac_secret: web::Data<HmacSecret>,
     form: web::Form<LoginFormData>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
@@ -113,21 +112,8 @@ pub async fn login(
                 AuthError::Unexpected(_) => LoginError::Unexpected(err.into()),
             };
 
-            let query_string = serde_urlencoded::to_string(&[("error", err.to_string())]).unwrap();
-
-            let hmac_tag = {
-                let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes())
-                        .unwrap();
-                mac.update(query_string.as_bytes());
-                mac.finalize().into_bytes()
-            };
-
             let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
-                ))
+                .insert_header((LOCATION, "/login"))
                 .finish();
 
             Err(InternalError::from_response(err, response))
