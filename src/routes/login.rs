@@ -1,10 +1,10 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
-use actix_web::cookie::Cookie;
 use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::web;
-use actix_web::{HttpRequest, HttpResponse};
+use actix_web::HttpResponse;
+use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages, Level as FlashLevel};
 use askama::Template;
 use secrecy::Secret;
 use std::fmt;
@@ -12,27 +12,24 @@ use std::fmt;
 #[derive(askama::Template)]
 #[template(path = "login.html.j2")]
 pub struct LoginTemplate {
-    error_message: Option<String>,
+    error_messages: Vec<String>,
 }
 
-pub async fn login_form(request: HttpRequest) -> HttpResponse {
-    let error = match request.cookie("_flash") {
-        Some(cookie) => cookie.value().to_string(),
-        None => "".into(),
-    };
+pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+    let mut error_messages = Vec::<String>::new();
 
-    let tpl = LoginTemplate {
-        error_message: Some(error),
-    };
+    for m in flash_messages.iter() {
+        if m.level() != FlashLevel::Error {
+            continue;
+        }
+        error_messages.push(m.content().to_string());
+    }
 
-    let mut response = HttpResponse::Ok()
+    let tpl = LoginTemplate { error_messages };
+
+    HttpResponse::Ok()
         .content_type(ContentType::html())
-        .body(tpl.render().unwrap());
-    response
-        .add_removal_cookie(&Cookie::new("_flash", ""))
-        .unwrap();
-
-    response
+        .body(tpl.render().unwrap())
 }
 
 #[derive(thiserror::Error)]
@@ -81,9 +78,10 @@ pub async fn login(
                 AuthError::Unexpected(_) => LoginError::Unexpected(err.into()),
             };
 
+            FlashMessage::error(err.to_string()).send();
+
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
-                .cookie(Cookie::new("_flash", err.to_string()))
                 .finish();
 
             Err(InternalError::from_response(err, response))
