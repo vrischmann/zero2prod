@@ -26,8 +26,6 @@ fake = "~2.3"
 
 # Crypto
 argon2 = { version = "0.4", features = ["std"] }
-hmac = { version = "0.12", features = ["std"] }
-sha2 = "0.10"
 
 # Web server, web client and async runtime
 actix-web = "4"
