@@ -1,6 +1,7 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
 use crate::startup::HmacSecret;
+use actix_web::cookie::Cookie;
 use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::web;
@@ -114,6 +115,7 @@ pub async fn login(
 
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
+                .cookie(Cookie::new("_flash", err.to_string()))
                 .finish();
 
             Err(InternalError::from_response(err, response))
