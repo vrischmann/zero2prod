@@ -1,5 +1,5 @@
 use crate::helpers::ConfirmationLinks;
-use crate::helpers::{spawn_app, SubscriptionBody, TestApp, UrlEncodedBody};
+use crate::helpers::{spawn_app, SubscriptionBody, TestApp};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
@@ -193,7 +193,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         .mount_as_scoped(&app.email_server)
         .await;
 
-    app.post_subscriptions(body.encode())
+    app.post_subscriptions(&body)
         .await
         .error_for_status()
         .unwrap();

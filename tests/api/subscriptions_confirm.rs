@@ -1,4 +1,4 @@
-use crate::helpers::{spawn_app, SubscriptionBody, UrlEncodedBody};
+use crate::helpers::{spawn_app, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
@@ -31,7 +31,7 @@ async fn the_link_returned_by_subscribe_returns_a_200_if_called(pool: sqlx::PgPo
         .mount(&app.email_server)
         .await;
 
-    let _ = app.post_subscriptions(body.encode()).await;
+    let _ = app.post_subscriptions(&body).await;
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
     let confirmation_links = app.get_confirmation_links(email_request);
 
@@ -57,7 +57,7 @@ async fn clicking_on_confirmation_link_confirms_a_subscriber(pool: sqlx::PgPool)
         .mount(&app.email_server)
         .await;
 
-    let _ = app.post_subscriptions(body.encode()).await;
+    let _ = app.post_subscriptions(&body).await;
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
     let confirmation_links = app.get_confirmation_links(email_request);
 

@@ -1,4 +1,4 @@
-use crate::helpers::{spawn_app, SubscriptionBody, UrlEncodedBody};
+use crate::helpers::{spawn_app, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
@@ -20,7 +20,7 @@ async fn subscribe_returns_200_for_valid_form_data(pool: sqlx::PgPool) {
         .mount(&app.email_server)
         .await;
 
-    let response = app.post_subscriptions(body.encode()).await;
+    let response = app.post_subscriptions(&body).await;
 
     //
 
@@ -42,7 +42,7 @@ async fn subscribe_persists_the_new_subscriber(pool: sqlx::PgPool) {
         .mount(&app.email_server)
         .await;
 
-    let _ = app.post_subscriptions(body.encode()).await;
+    let _ = app.post_subscriptions(&body).await;
 
     //
 
@@ -64,17 +64,22 @@ async fn subscribe_returns_400_when_data_is_invalid(pool: sqlx::PgPool) {
     let app = spawn_app(pool).await;
 
     let test_cases = vec![
-        ("name=le%20guin", "missing the email"),
-        ("email=ursula_le_guin%40gmail.com", "missing the name"),
-        ("", "missing both name and email"),
-        ("name=&email=ursula_le_guin%40gmail.com", "name is empty"),
-        ("name=le%20guin&email=", "email is empty"),
+        (vec![("name", "le guin")], "missing the email"),
         (
-            const_str::concat!(
-                "name=",
-                const_str::repeat!("a", 300),
-                "&email=ursula_le_guin%40gmail.com"
-            ),
+            vec![("email", "ursula_le_guin@gmail.com")],
+            "missing the name",
+        ),
+        (vec![("", ""), ("", "")], "missing both name and email"),
+        (
+            vec![("name", ""), ("email", "ursula_le_guin@gmail.com")],
+            "name is empty",
+        ),
+        (vec![("name", "le guin"), ("email", "")], "email is empty"),
+        (
+            vec![
+                ("name", const_str::repeat!("a", 300)),
+                ("email", "ursula_le_guin@gmail.com"),
+            ],
             "name is too long",
         ),
     ];
@@ -82,7 +87,7 @@ async fn subscribe_returns_400_when_data_is_invalid(pool: sqlx::PgPool) {
     //
 
     for (invalid_body, error_message) in test_cases {
-        let response = app.post_subscriptions(invalid_body.into()).await;
+        let response = app.post_subscriptions(&invalid_body).await;
         assert_eq!(
             400,
             response.status().as_u16(),
@@ -110,7 +115,7 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data(pool: sqlx::PgPool)
 
     //
 
-    let _ = app.post_subscriptions(body.encode()).await;
+    let _ = app.post_subscriptions(&body).await;
 }
 
 #[sqlx::test]
@@ -130,7 +135,7 @@ async fn subscribe_sends_a_confirmation_email_with_a_link(pool: sqlx::PgPool) {
 
     //
 
-    let _ = app.post_subscriptions(body.encode()).await;
+    let _ = app.post_subscriptions(&body).await;
 
     //
 
@@ -160,7 +165,7 @@ async fn subscribe_fails_if_there_is_a_fatal_database_error(pool: sqlx::PgPool) 
         email: SafeEmail().fake(),
     };
 
-    let response = app.post_subscriptions(body.encode()).await;
+    let response = app.post_subscriptions(&body).await;
 
     assert_eq!(response.status().as_u16(), 500);
 }
