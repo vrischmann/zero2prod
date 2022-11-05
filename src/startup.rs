@@ -1,7 +1,9 @@
 use crate::configuration::Settings;
 use crate::routes;
+use crate::sessions::PgSessionStore;
 use crate::tem;
 use actix_files::Files;
+use actix_session::SessionMiddleware;
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use actix_web_flash_messages::storage::CookieMessageStore;
@@ -79,19 +81,26 @@ fn run(
     base_url: ApplicationBaseUrl,
     hmac_secret: HmacSecret,
 ) -> Result<Server, io::Error> {
+    let cookie_signing_key = actix_web::cookie::Key::from(hmac_secret.0.expose_secret().as_bytes());
+
+    // Flash messages
+    let flash_messages_store = CookieMessageStore::builder(cookie_signing_key.clone()).build();
+    let flash_messages_framework = FlashMessagesFramework::builder(flash_messages_store).build();
+
+    // Session store
+    let session_store = PgSessionStore::new(pool.clone());
+
     let pool = web::Data::new(pool);
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(base_url);
 
-    let cookie_message_store_signing_key =
-        actix_web::cookie::Key::from(hmac_secret.0.expose_secret().as_bytes());
-    let flash_messages_store =
-        CookieMessageStore::builder(cookie_message_store_signing_key).build();
-    let flash_messages_framework = FlashMessagesFramework::builder(flash_messages_store).build();
-
     let server = HttpServer::new(move || {
         App::new()
             .wrap(flash_messages_framework.clone())
+            .wrap(SessionMiddleware::new(
+                session_store.clone(),
+                cookie_signing_key.clone(),
+            ))
             .wrap(TracingLogger::default())
             .service(Files::new("/static", "./static").prefer_utf8(true))
             .route("/health_check", web::get().to(routes::health_check))
