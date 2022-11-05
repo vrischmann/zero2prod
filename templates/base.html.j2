@@ -16,7 +16,16 @@
             <a href="/login">Login</a>
         </header>
 
-        <div class="content">{% block content %}{% endblock %}</div>
+        <div class="content">
+            {% for msg in error_messages %}
+            <p class="flash flash-error"><i>{{ msg }}</i></p>
+            {% endfor %}
+            {% for msg in info_messages %}
+            <p class="flash flash-info"><i>{{ msg }}</i></p>
+            {% endfor %}
+
+            {% block content %}{% endblock %}
+        </div>
     </div>
 </body>
 

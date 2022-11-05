@@ -3,10 +3,6 @@
 {% block title %}Login{% endblock %}
 {% block content %}
 
-{% for msg in error_messages %}
-<p><i>{{ msg }}</i></p>
-{% endfor %}
-
 <form class="login" action="/login" method="POST">
     <label for="username">Username</label>
     <input type="text" placeholder="Enter Username" name="username">

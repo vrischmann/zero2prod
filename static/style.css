@@ -4,8 +4,10 @@
 }
 
 :root {
-    --red-1: rgb(239 68 68);
-    --red-2: rgb(185 28 28);
+    --red-1: #f87171;
+    --red-2: #dc2626;
+    --yellow-1: #facc15;
+    --yellow-2: #ca8a04;
 }
 
 html {
@@ -60,7 +62,9 @@ form>label {
 }
 
 .content {
+    margin-top: 3em;
     padding-top: 1em;
+    border-top: 1px black solid;
 }
 
 form.login {
@@ -68,4 +72,22 @@ form.login {
     width: 30%;
     grid-auto-flow: row;
     row-gap: 0.3em;
+}
+
+p.flash:before {
+    content: "> ";
+}
+
+p.flash {
+    width: max-content;
+    font-size: smaller;
+    margin-bottom: 1em;
+}
+
+p.flash-error {
+    color: var(--red-2);
+}
+
+p.flash-info {
+    color: var(--yellow-1);
 }
