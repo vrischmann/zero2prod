@@ -67,7 +67,12 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        reqwest::Client::new()
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("Failed to build the reqwest client");
+
+        client
             .post(&format!("{}/login", &self.address))
             .form(body)
             .send()
