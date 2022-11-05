@@ -34,7 +34,9 @@ pub struct TestApp {
     pub address: String,
     pub port: u16,
     pub pool: PgPool,
+
     pub email_server: MockServer,
+    pub http_client: reqwest::Client,
 
     pub test_user: TestUser,
 }
@@ -44,7 +46,7 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        reqwest::Client::new()
+        self.http_client
             .post(&format!("{}/subscriptions", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .form(body)
@@ -54,13 +56,36 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        reqwest::Client::new()
+        self.http_client
             .post(&format!("{}/newsletters", &self.address))
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.http_client
+            .post(&format!("{}/login", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_login_html(&self) -> String {
+        let response = self
+            .http_client
+            .get(&format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.");
+
+        response.text().await.unwrap()
     }
 
     pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
@@ -117,11 +142,18 @@ pub async fn spawn_app(pool: sqlx::PgPool) -> TestApp {
 
     //
 
+    let http_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .expect("Failed to build HTTP client");
+
     let test_app = TestApp {
         address: format!("http://127.0.0.1:{}", app_port),
         port: app_port,
         pool,
         email_server,
+        http_client,
         test_user: TestUser::generate(),
     };
 
@@ -174,8 +206,19 @@ impl TestUser {
     }
 }
 
+pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
+    assert_eq!(response.status().as_u16(), 303);
+    assert_eq!(response.headers().get("Location").unwrap(), location);
+}
+
 #[derive(serde::Serialize)]
 pub struct SubscriptionBody {
     pub name: String,
     pub email: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct LoginBody {
+    pub username: String,
+    pub password: String,
 }

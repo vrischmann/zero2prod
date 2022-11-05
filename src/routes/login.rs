@@ -1,15 +1,13 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
-use crate::startup::HmacSecret;
+use actix_web::cookie::Cookie;
 use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::web;
-use actix_web::HttpResponse;
+use actix_web::{HttpRequest, HttpResponse};
 use askama::Template;
-use hmac::{Hmac, Mac};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 use std::fmt;
-use tracing::warn;
 
 #[derive(askama::Template)]
 #[template(path = "login.html.j2")]
@@ -17,53 +15,24 @@ pub struct LoginTemplate {
     error_message: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
-pub struct QueryParams {
-    error: String,
-    tag: String,
-}
-
-impl QueryParams {
-    fn verify_error(self, hmac_secret: &HmacSecret) -> Result<String, anyhow::Error> {
-        let tag = hex::decode(self.tag)?;
-
-        let query_string = serde_urlencoded::to_string([("error", &self.error)]).unwrap();
-
-        let mut mac =
-            Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes()).unwrap();
-        mac.update(query_string.as_bytes());
-        mac.verify_slice(&tag)?;
-
-        Ok(self.error)
-    }
-}
-
-pub async fn login_form(
-    hmac_secret: web::Data<HmacSecret>,
-    query: Option<web::Query<QueryParams>>,
-) -> HttpResponse {
-    let error = match query {
-        Some(query) => match query.0.verify_error(&hmac_secret) {
-            Err(err) => {
-                warn!(
-                    error.message = %err,
-                    error.cause_chain = ?err,
-                    "Failed to verify query parameters using the HMAC tag"
-                );
-                None
-            }
-            Ok(error_message) => Some(error_message),
-        },
-        None => None,
+pub async fn login_form(request: HttpRequest) -> HttpResponse {
+    let error = match request.cookie("_flash") {
+        Some(cookie) => cookie.value().to_string(),
+        None => "".into(),
     };
 
     let tpl = LoginTemplate {
-        error_message: error,
+        error_message: Some(error),
     };
 
-    HttpResponse::Ok()
+    let mut response = HttpResponse::Ok()
         .content_type(ContentType::html())
-        .body(tpl.render().unwrap())
+        .body(tpl.render().unwrap());
+    response
+        .add_removal_cookie(&Cookie::new("_flash", ""))
+        .unwrap();
+
+    response
 }
 
 #[derive(thiserror::Error)]
@@ -88,7 +57,7 @@ pub struct LoginFormData {
 
 #[tracing::instrument(
     name = "Do login",
-    skip(pool, hmac_secret, form),
+    skip(pool, form),
     fields(
         username = tracing::field::Empty,
         user_id = tracing::field::Empty,
@@ -96,7 +65,6 @@ pub struct LoginFormData {
 )]
 pub async fn login(
     pool: web::Data<sqlx::PgPool>,
-    hmac_secret: web::Data<HmacSecret>,
     form: web::Form<LoginFormData>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
@@ -113,21 +81,9 @@ pub async fn login(
                 AuthError::Unexpected(_) => LoginError::Unexpected(err.into()),
             };
 
-            let query_string = serde_urlencoded::to_string(&[("error", err.to_string())]).unwrap();
-
-            let hmac_tag = {
-                let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes())
-                        .unwrap();
-                mac.update(query_string.as_bytes());
-                mac.finalize().into_bytes()
-            };
-
             let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
-                ))
+                .insert_header((LOCATION, "/login"))
+                .cookie(Cookie::new("_flash", err.to_string()))
                 .finish();
 
             Err(InternalError::from_response(err, response))
