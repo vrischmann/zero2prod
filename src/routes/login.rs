@@ -25,9 +25,14 @@ pub async fn login_form(request: HttpRequest) -> HttpResponse {
         error_message: Some(error),
     };
 
-    HttpResponse::Ok()
+    let mut response = HttpResponse::Ok()
         .content_type(ContentType::html())
-        .body(tpl.render().unwrap())
+        .body(tpl.render().unwrap());
+    response
+        .add_removal_cookie(&Cookie::new("_flash", ""))
+        .unwrap();
+
+    response
 }
 
 #[derive(thiserror::Error)]
