@@ -13,6 +13,7 @@ use std::fmt;
 #[template(path = "login.html.j2")]
 pub struct LoginTemplate {
     error_messages: Vec<String>,
+    info_messages: Vec<String>,
 }
 
 pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
@@ -25,7 +26,7 @@ pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
         error_messages.push(m.content().to_string());
     }
 
-    let tpl = LoginTemplate { error_messages };
+    let tpl = LoginTemplate { error_messages, info_messages:Vec::new(), };
 
     HttpResponse::Ok()
         .content_type(ContentType::html())
