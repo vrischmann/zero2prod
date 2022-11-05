@@ -6,7 +6,6 @@ use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use askama::Template;
-use chrono::Utc;
 use rand::Rng;
 use std::fmt;
 use tracing::{event, Level};
@@ -167,7 +166,7 @@ async fn insert_subscriber(
         subscriber_id,
         new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
-        Utc::now(),
+        time::OffsetDateTime::now_utc(),
         "pending_confirmation",
     )
     .execute(tx)
