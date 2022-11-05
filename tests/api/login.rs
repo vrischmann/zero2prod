@@ -15,11 +15,13 @@ async fn an_error_flash_message_is_set_on_failure(pool: sqlx::PgPool) {
 
     assert_is_redirect_to(&response, "/login");
 
+    const EXPECTED_HTML: &str = r#"<p class="flash flash-error"><i>Authentication failed</i></p>"#;
+
     // 2) reload the page to check that the handlers prints the flash message
     let html_page = app.get_login_html().await;
-    assert!(html_page.contains(r#"<p><i>Authentication failed</i></p>"#));
+    assert!(html_page.contains(EXPECTED_HTML));
 
     // 3) reload the page once again; now we don't expect the handlers to print the flash message
     let html_page = app.get_login_html().await;
-    assert!(!html_page.contains(r#"<p><i>Authentication failed</i></p>"#));
+    assert!(!html_page.contains(EXPECTED_HTML));
 }
