@@ -44,7 +44,7 @@ serde_urlencoded = "0.7"
 hex = "0.4"
 
 # SQL on steroids
-sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "macros", "postgres", "uuid", "chrono", "migrate", "offline"] }
+sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "macros", "postgres", "uuid", "time", "migrate", "offline"] }
 
 # String stuff
 unicode-segmentation = "1"
@@ -59,7 +59,7 @@ tracing-actix-web = "0.6"
 
 # Other stuff
 uuid = { version = "1", features = ["v4"] }
-chrono = "0.4.15"
+time = "0.3"
 base64 = "0.13"
 rand = { version = "0.8", features = ["std_rng"] }
 config = "0.13"
