@@ -142,6 +142,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-session"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c9138a66462f1e65da829f9c0de81b44a96dfe193a4f19bfea32ee2be312368"
+dependencies = [
+ "actix-service",
+ "actix-utils",
+ "actix-web",
+ "anyhow",
+ "async-trait",
+ "derive_more",
+ "serde",
+ "serde_json",
+ "time",
+ "tracing",
+]
+
+[[package]]
 name = "actix-utils"
 version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2894,11 +2912,13 @@ name = "zero2prod"
 version = "0.1.0"
 dependencies = [
  "actix-files",
+ "actix-session",
  "actix-web",
  "actix-web-flash-messages",
  "anyhow",
  "argon2",
  "askama",
+ "async-trait",
  "base64",
  "claim",
  "config",
