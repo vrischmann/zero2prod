@@ -64,6 +64,7 @@ jobs:
           RUSTFLAGS: "-Cinstrument-coverage"
           LLVM_PROFILE_FILE: "your_name-%p-%m.profraw"
           TEST_LOG: "true"
+          RUST_LOG: "trace"
         run: |
           cargo build
           cargo test
