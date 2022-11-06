@@ -81,6 +81,7 @@ pub async fn login(
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
+            session.renew();
             session
                 .insert("user_id", user_id)
                 .map_err(|err| login_redirect(LoginError::Unexpected(err.into())))?;
