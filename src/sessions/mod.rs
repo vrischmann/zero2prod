@@ -334,7 +334,8 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_an_expired_session_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool, CleanupConfig::default());
+        let store =
+            PgSessionStore::new(pool, CleanupConfig::new(true, Duration::milliseconds(100)));
         let state = make_state();
 
         let session_key = store
