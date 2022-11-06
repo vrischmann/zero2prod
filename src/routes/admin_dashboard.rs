@@ -1,4 +1,4 @@
-use actix_session::Session;
+use crate::sessions::TypedSession;
 use actix_web::http::header::ContentType;
 use actix_web::web;
 use actix_web::HttpResponse;
@@ -24,11 +24,9 @@ pub struct LoginTemplate {
 
 pub async fn admin_dashboard(
     pool: web::Data<sqlx::PgPool>,
-    session: Session,
+    session: TypedSession,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let get_user_id_result = session
-        .get::<Uuid>("user_id")
-        .map_err(internal_server_error)?;
+    let get_user_id_result = session.get_user_id().map_err(internal_server_error)?;
 
     let username = match get_user_id_result {
         Some(user_id) => get_username(&pool, user_id)

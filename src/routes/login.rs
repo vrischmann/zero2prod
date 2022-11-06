@@ -1,6 +1,6 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
-use actix_session::Session;
+use crate::sessions::TypedSession;
 use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::web;
@@ -67,7 +67,7 @@ pub struct LoginFormData {
 )]
 pub async fn login(
     pool: web::Data<sqlx::PgPool>,
-    session: Session,
+    session: TypedSession,
     form: web::Form<LoginFormData>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
@@ -83,7 +83,7 @@ pub async fn login(
 
             session.renew();
             session
-                .insert("user_id", user_id)
+                .insert_user_id(user_id)
                 .map_err(|err| login_redirect(LoginError::Unexpected(err.into())))?;
 
             Ok(HttpResponse::SeeOther()
