@@ -59,7 +59,7 @@ tracing-log = "0.1"
 tracing-actix-web = "0.6"
 
 # Other stuff
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "serde"] }
 time = "0.3"
 base64 = "0.13"
 rand = { version = "0.8", features = ["std_rng"] }
