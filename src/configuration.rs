@@ -6,6 +6,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSetttings,
     pub tem: TEMSettings,
+    pub session: SessionSettings,
 }
 
 #[derive(serde::Deserialize)]
@@ -35,6 +36,21 @@ impl DatabaseSettings {
             self.port,
             self.database_name
         ))
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct SessionSettings {
+    pub clean_interval_milliseconds: i64,
+    pub ttl: i64,
+}
+
+impl SessionSettings {
+    pub fn clean_interval(&self) -> time::Duration {
+        time::Duration::milliseconds(self.clean_interval_milliseconds)
+    }
+    pub fn ttl(&self) -> time::Duration {
+        time::Duration::milliseconds(self.ttl)
     }
 }
 
