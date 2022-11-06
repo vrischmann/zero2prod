@@ -1,13 +1,13 @@
-use crate::helpers::{spawn_app, SubscriptionBody};
+use crate::helpers::{spawn_app, spawn_app_with_pool, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
-#[sqlx::test]
-async fn subscribe_returns_200_for_valid_form_data(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn subscribe_returns_200_for_valid_form_data() {
+    let app = spawn_app().await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -27,9 +27,9 @@ async fn subscribe_returns_200_for_valid_form_data(pool: sqlx::PgPool) {
     assert_eq!(200, response.status().as_u16());
 }
 
-#[sqlx::test]
-async fn subscribe_persists_the_new_subscriber(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn subscribe_persists_the_new_subscriber() {
+    let app = spawn_app().await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -59,9 +59,9 @@ async fn subscribe_persists_the_new_subscriber(pool: sqlx::PgPool) {
     assert_eq!(saved.status, "pending_confirmation");
 }
 
-#[sqlx::test]
-async fn subscribe_returns_400_when_data_is_invalid(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn subscribe_returns_400_when_data_is_invalid() {
+    let app = spawn_app().await;
 
     let test_cases = vec![
         (vec![("name", "le guin")], "missing the email"),
@@ -97,9 +97,9 @@ async fn subscribe_returns_400_when_data_is_invalid(pool: sqlx::PgPool) {
     }
 }
 
-#[sqlx::test]
-async fn subscribe_sends_a_confirmation_email_for_valid_data(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_for_valid_data() {
+    let app = spawn_app().await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -118,9 +118,9 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data(pool: sqlx::PgPool)
     let _ = app.post_subscriptions(&body).await;
 }
 
-#[sqlx::test]
-async fn subscribe_sends_a_confirmation_email_with_a_link(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_with_a_link() {
+    let app = spawn_app().await;
 
     let body = SubscriptionBody {
         name: Name().fake(),
@@ -151,7 +151,7 @@ async fn subscribe_sends_a_confirmation_email_with_a_link(pool: sqlx::PgPool) {
 
 #[sqlx::test]
 async fn subscribe_fails_if_there_is_a_fatal_database_error(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+    let app = spawn_app_with_pool(pool).await;
 
     // Sabotage the database
     // sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token")
