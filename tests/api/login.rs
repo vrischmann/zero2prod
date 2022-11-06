@@ -1,8 +1,8 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app, LoginBody};
 
-#[sqlx::test]
-async fn an_error_flash_message_is_set_on_failure(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn an_error_flash_message_is_set_on_failure() {
+    let app = spawn_app().await;
 
     // 1) wrong credentials, expect a flash message
 

@@ -1,6 +1,7 @@
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
 use once_cell::sync::Lazy;
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -118,7 +119,20 @@ impl TestApp {
     }
 }
 
-pub async fn spawn_app(pool: sqlx::PgPool) -> TestApp {
+pub async fn spawn_app() -> TestApp {
+    let configuration = get_configuration().expect("Failed to read configuration");
+
+    let pool = sqlx::pool::PoolOptions::default()
+        .max_connections(1024)
+        .acquire_timeout(std::time::Duration::from_secs(1))
+        .connect(configuration.database.connection_string().expose_secret())
+        .await
+        .expect("Failed to build postgresql pool");
+
+    spawn_app_with_pool(pool).await
+}
+
+pub async fn spawn_app_with_pool(pool: sqlx::PgPool) -> TestApp {
     Lazy::force(&TRACING);
 
     //

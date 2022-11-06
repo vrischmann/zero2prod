@@ -1,5 +1,5 @@
 use crate::helpers::ConfirmationLinks;
-use crate::helpers::{spawn_app, SubscriptionBody, TestApp};
+use crate::helpers::{spawn_app, spawn_app_with_pool, SubscriptionBody, TestApp};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
@@ -10,7 +10,7 @@ use wiremock::{Mock, ResponseTemplate};
 
 #[sqlx::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+    let app = spawn_app_with_pool(pool).await;
 
     create_unconfirmed_subscriber(&app).await;
 
@@ -36,8 +36,8 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
 }
 
 #[sqlx::test]
-async fn newsletters_are_delivered_to_unconfirmed_subscribers(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) {
+    let app = spawn_app_with_pool(pool).await;
 
     create_confirmed_subscriber(&app).await;
 
@@ -62,9 +62,9 @@ async fn newsletters_are_delivered_to_unconfirmed_subscribers(pool: sqlx::PgPool
     assert_eq!(response.status().as_u16(), 200);
 }
 
-#[sqlx::test]
-async fn newsletters_returns_400_for_invalid_data(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn newsletters_returns_400_for_invalid_data() {
+    let app = spawn_app().await;
 
     let test_cases = vec![
         (
@@ -99,9 +99,9 @@ async fn newsletters_returns_400_for_invalid_data(pool: sqlx::PgPool) {
     }
 }
 
-#[sqlx::test]
-async fn requests_missing_authorization_are_reject(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn requests_missing_authorization_are_reject() {
+    let app = spawn_app().await;
 
     let response = reqwest::Client::new()
         .post(&format!("{}/newsletters", &app.address))
@@ -123,9 +123,9 @@ async fn requests_missing_authorization_are_reject(pool: sqlx::PgPool) {
     );
 }
 
-#[sqlx::test]
-async fn non_existing_user_is_rejected(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn non_existing_user_is_rejected() {
+    let app = spawn_app().await;
 
     let username = Uuid::new_v4().to_string();
     let password = Uuid::new_v4().to_string();
@@ -151,9 +151,9 @@ async fn non_existing_user_is_rejected(pool: sqlx::PgPool) {
     );
 }
 
-#[sqlx::test]
-async fn invalid_password_is_rejected(pool: sqlx::PgPool) {
-    let app = spawn_app(pool).await;
+#[tokio::test]
+async fn invalid_password_is_rejected() {
+    let app = spawn_app().await;
 
     let username = &app.test_user.username;
     let password = Uuid::new_v4().to_string();
