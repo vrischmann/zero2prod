@@ -41,13 +41,14 @@ impl DatabaseSettings {
 
 #[derive(serde::Deserialize)]
 pub struct SessionSettings {
-    pub clean_interval_milliseconds: i64,
+    pub cleanup_enabled: bool,
+    pub cleanup_interval_milliseconds: i64,
     pub ttl: i64,
 }
 
 impl SessionSettings {
-    pub fn clean_interval(&self) -> time::Duration {
-        time::Duration::milliseconds(self.clean_interval_milliseconds)
+    pub fn cleanup_interval(&self) -> time::Duration {
+        time::Duration::milliseconds(self.cleanup_interval_milliseconds)
     }
     pub fn ttl(&self) -> time::Duration {
         time::Duration::milliseconds(self.ttl)

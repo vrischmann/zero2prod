@@ -1,6 +1,6 @@
 use crate::configuration::Settings;
 use crate::routes;
-use crate::sessions::PgSessionStore;
+use crate::sessions::{CleanupConfig, PgSessionStore};
 use crate::tem;
 use actix_files::Files;
 use actix_session::SessionMiddleware;
@@ -52,8 +52,13 @@ impl Application {
             configuration.tem.timeout(),
         );
 
-        let session_store =
-            PgSessionStore::new(pool.clone(), configuration.session.clean_interval());
+        let session_store = PgSessionStore::new(
+            pool.clone(),
+            CleanupConfig::new(
+                configuration.session.cleanup_enabled,
+                configuration.session.cleanup_interval(),
+            ),
+        );
 
         //
 

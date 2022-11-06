@@ -10,13 +10,33 @@ pub struct PgSessionStore {
     pool: sqlx::PgPool,
 }
 
+#[derive(Debug)]
+pub struct CleanupConfig {
+    enabled: bool,
+    interval: time::Duration,
+}
+
+impl CleanupConfig {
+    pub fn new(enabled: bool, interval: time::Duration) -> Self {
+        Self { enabled, interval }
+    }
+}
+
+impl Default for CleanupConfig {
+    fn default() -> Self {
+        Self::new(false, time::Duration::seconds(30))
+    }
+}
+
 impl PgSessionStore {
-    pub fn new(pool: sqlx::PgPool, clean_interval: time::Duration) -> Self {
-        // Launch a background cleanup task
-        let cleanup_pool = pool.clone();
-        tokio::spawn(async move {
-            clean_sessions(cleanup_pool, clean_interval).await;
-        });
+    pub fn new(pool: sqlx::PgPool, cleanup_config: CleanupConfig) -> Self {
+        // Launch a background cleanup task if necessary
+        if cleanup_config.enabled {
+            let cleanup_pool = pool.clone();
+            tokio::spawn(async move {
+                clean_sessions(cleanup_pool, cleanup_config.interval).await;
+            });
+        }
 
         Self { pool }
     }
@@ -35,9 +55,13 @@ async fn clean_sessions(pool: sqlx::PgPool, clean_interval: time::Duration) {
             Ok(result) => {
                 tracing::debug!(cleaned = %result.rows_affected(), "sessions cleanup done");
             }
-            Err(err) => {
-                tracing::error!(%err, "unable to cleanup sessions");
-            }
+            Err(err) => match err {
+                sqlx::Error::PoolClosed => {
+                    tracing::debug!("pool is closed");
+                    return;
+                }
+                _ => tracing::error!(?err, "unable to cleanup sessions"),
+            },
         }
     }
 }
@@ -196,7 +220,7 @@ fn session_key_to_uuid(session_key: &SessionKey) -> Result<Uuid, anyhow::Error> 
 
 #[cfg(test)]
 mod tests {
-    use super::{uuid_to_session_key, PgSessionStore};
+    use super::{uuid_to_session_key, CleanupConfig, PgSessionStore};
     use actix_session::storage::SessionStore;
     use actix_web::cookie::time::Duration;
     use claim::assert_none;
@@ -209,7 +233,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_a_missing_session_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool, Duration::seconds(30));
+        let store = PgSessionStore::new(pool, CleanupConfig::default());
 
         let session_key = uuid_to_session_key(Uuid::new_v4()).unwrap();
 
@@ -222,7 +246,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_an_existing_session_returns_its_state(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool, Duration::seconds(30));
+        let store = PgSessionStore::new(pool, CleanupConfig::default());
         let state = make_state();
 
         let session_key = store
@@ -244,7 +268,7 @@ mod tests {
     async fn updating_then_loading_an_existing_session_returns_its_updated_state(
         pool: sqlx::PgPool,
     ) {
-        let store = PgSessionStore::new(pool, Duration::seconds(30));
+        let store = PgSessionStore::new(pool, CleanupConfig::default());
         let mut state = make_state();
 
         let session_key = store
@@ -269,7 +293,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_a_session_saved_with_a_negative_ttl_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool, Duration::seconds(30));
+        let store = PgSessionStore::new(pool, CleanupConfig::default());
         let state = make_state();
 
         let session_key = store
@@ -287,7 +311,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_a_deleted_session_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool, Duration::seconds(30));
+        let store = PgSessionStore::new(pool, CleanupConfig::default());
         let state = make_state();
 
         let session_key = store
@@ -310,7 +334,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_an_expired_session_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool, Duration::milliseconds(70));
+        let store = PgSessionStore::new(pool, CleanupConfig::default());
         let state = make_state();
 
         let session_key = store
