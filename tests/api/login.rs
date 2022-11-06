@@ -33,16 +33,14 @@ async fn redirect_to_admin_dashboard_after_login_success() {
     // 1) wrong credentials, expect a flash message
 
     let body = LoginBody {
-        username: "random-username".to_string(),
-        password: "random-password".to_string(),
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
     };
 
     let response = app.post_login(&body).await;
     assert_is_redirect_to(&response, "/admin/dashboard");
 
-    const EXPECTED_HTML: &str = r#"<p class="flash flash-error"><i>Authentication failed</i></p>"#;
-
     // 2) reload the page to check that the handlers prints the flash message
     let html_page = app.get_admin_dashboard_html().await;
-    assert!(html_page.contains(EXPECTED_HTML));
+    assert!(html_page.contains(&format!("Welcome {}", &app.test_user.username)));
 }
