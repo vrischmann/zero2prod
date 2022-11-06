@@ -26,7 +26,10 @@ pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
         error_messages.push(m.content().to_string());
     }
 
-    let tpl = LoginTemplate { error_messages, info_messages:Vec::new(), };
+    let tpl = LoginTemplate {
+        error_messages,
+        info_messages: Vec::new(),
+    };
 
     HttpResponse::Ok()
         .content_type(ContentType::html())
