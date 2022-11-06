@@ -1,5 +1,6 @@
 use crate::sessions::TypedSession;
 use actix_web::http::header::ContentType;
+use actix_web::http::header::LOCATION;
 use actix_web::web;
 use actix_web::HttpResponse;
 use anyhow::Context;
@@ -32,7 +33,11 @@ pub async fn admin_dashboard(
         Some(user_id) => get_username(&pool, user_id)
             .await
             .map_err(internal_server_error)?,
-        None => todo!(),
+        None => {
+            return Ok(HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/login"))
+                .finish());
+        }
     };
 
     let tpl = LoginTemplate {
