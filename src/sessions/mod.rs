@@ -5,14 +5,40 @@ use anyhow::anyhow;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PgSessionStore {
     pool: sqlx::PgPool,
 }
 
 impl PgSessionStore {
-    pub fn new(pool: sqlx::PgPool) -> Self {
+    pub fn new(pool: sqlx::PgPool, clean_interval: time::Duration) -> Self {
+        // Launch a background cleanup task
+        let cleanup_pool = pool.clone();
+        tokio::spawn(async move {
+            clean_sessions(cleanup_pool, clean_interval).await;
+        });
+
         Self { pool }
+    }
+}
+
+async fn clean_sessions(pool: sqlx::PgPool, clean_interval: time::Duration) {
+    let mut interval = tokio::time::interval(clean_interval.unsigned_abs());
+    loop {
+        let _ = interval.tick().await;
+        let now = time::OffsetDateTime::now_utc();
+
+        let result = sqlx::query!("DELETE FROM sessions WHERE expires_at <= $1", now)
+            .execute(&pool)
+            .await;
+        match result {
+            Ok(result) => {
+                tracing::debug!(cleaned = %result.rows_affected(), "sessions cleanup done");
+            }
+            Err(err) => {
+                tracing::error!(%err, "unable to cleanup sessions");
+            }
+        }
     }
 }
 
@@ -183,7 +209,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_a_missing_session_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool);
+        let store = PgSessionStore::new(pool, Duration::seconds(30));
 
         let session_key = uuid_to_session_key(Uuid::new_v4()).unwrap();
 
@@ -196,7 +222,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_an_existing_session_returns_its_state(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool);
+        let store = PgSessionStore::new(pool, Duration::seconds(30));
         let state = make_state();
 
         let session_key = store
@@ -218,7 +244,7 @@ mod tests {
     async fn updating_then_loading_an_existing_session_returns_its_updated_state(
         pool: sqlx::PgPool,
     ) {
-        let store = PgSessionStore::new(pool);
+        let store = PgSessionStore::new(pool, Duration::seconds(30));
         let mut state = make_state();
 
         let session_key = store
@@ -243,7 +269,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_a_session_saved_with_a_negative_ttl_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool);
+        let store = PgSessionStore::new(pool, Duration::seconds(30));
         let state = make_state();
 
         let session_key = store
@@ -261,7 +287,7 @@ mod tests {
 
     #[sqlx::test]
     async fn loading_a_deleted_session_returns_none(pool: sqlx::PgPool) {
-        let store = PgSessionStore::new(pool);
+        let store = PgSessionStore::new(pool, Duration::seconds(30));
         let state = make_state();
 
         let session_key = store
@@ -278,6 +304,26 @@ mod tests {
             .load(&session_key)
             .await
             .expect("Unable to load the session");
+
+        assert_none!(loaded_state);
+    }
+
+    #[sqlx::test]
+    async fn loading_an_expired_session_returns_none(pool: sqlx::PgPool) {
+        let store = PgSessionStore::new(pool, Duration::milliseconds(70));
+        let state = make_state();
+
+        let session_key = store
+            .save(state.clone(), &Duration::milliseconds(50))
+            .await
+            .expect("Unable to save the session");
+
+        let loaded_state = store
+            .load(&session_key)
+            .await
+            .expect("Unable to load the session");
+
+        tokio::time::sleep(Duration::milliseconds(200).unsigned_abs()).await;
 
         assert_none!(loaded_state);
     }

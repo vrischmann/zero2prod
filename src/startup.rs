@@ -52,6 +52,11 @@ impl Application {
             configuration.tem.timeout(),
         );
 
+        let session_store =
+            PgSessionStore::new(pool.clone(), configuration.session.clean_interval());
+
+        //
+
         let listener = TcpListener::bind(&format!(
             "{}:{}",
             configuration.application.host, configuration.application.port
@@ -62,15 +67,18 @@ impl Application {
             listener,
             pool.clone(),
             tem_client,
+            session_store,
             ApplicationBaseUrl(configuration.application.base_url),
             HmacSecret(configuration.application.hmac_secret),
+            configuration.session.ttl(),
         )?;
 
         Ok(Self { port, pool, server })
     }
 
-    pub async fn run_until_stopped(self) -> Result<(), io::Error> {
-        self.server.await
+    pub async fn run_until_stopped(self) -> Result<(), anyhow::Error> {
+        self.server.await?;
+        Ok(())
     }
 }
 
@@ -78,8 +86,10 @@ fn run(
     listener: TcpListener,
     pool: PgPool,
     email_client: tem::Client,
+    session_store: PgSessionStore,
     base_url: ApplicationBaseUrl,
     hmac_secret: HmacSecret,
+    session_ttl: time::Duration,
 ) -> Result<Server, io::Error> {
     let cookie_signing_key = actix_web::cookie::Key::from(hmac_secret.0.expose_secret().as_bytes());
 
@@ -88,19 +98,22 @@ fn run(
     let flash_messages_framework = FlashMessagesFramework::builder(flash_messages_store).build();
 
     // Session store
-    let session_store = PgSessionStore::new(pool.clone());
 
     let pool = web::Data::new(pool);
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(base_url);
 
     let server = HttpServer::new(move || {
+        let session_middleware =
+            SessionMiddleware::builder(session_store.clone(), cookie_signing_key.clone())
+                .session_length(actix_session::SessionLength::BrowserSession {
+                    state_ttl: Some(session_ttl),
+                })
+                .build();
+
         App::new()
             .wrap(flash_messages_framework.clone())
-            .wrap(SessionMiddleware::new(
-                session_store.clone(),
-                cookie_signing_key.clone(),
-            ))
+            .wrap(session_middleware)
             .wrap(TracingLogger::default())
             .service(Files::new("/static", "./static").prefer_utf8(true))
             .route("/health_check", web::get().to(routes::health_check))
