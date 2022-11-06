@@ -89,14 +89,16 @@ impl TestApp {
         response.text().await.unwrap()
     }
 
-    pub async fn get_admin_dashboard_html(&self) -> String {
-        let response = self
-            .http_client
+    pub async fn get_admin_dashboard(&self) -> reqwest::Response {
+        self.http_client
             .get(&format!("{}/admin/dashboard", &self.address))
             .send()
             .await
-            .expect("Failed to execute request.");
+            .expect("Failed to execute request.")
+    }
 
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        let response = self.get_admin_dashboard().await;
         response.text().await.unwrap()
     }
 
