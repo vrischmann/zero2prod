@@ -94,6 +94,8 @@ impl SessionStore for PgSessionStore {
             return Ok(None);
         }
 
+        tracing::trace!(now = %now, expires_at = %expires_at, session_id = %session_id, "loaded state");
+
         let state = serde_json::from_slice(&session_state_data)
             .map_err(Into::<anyhow::Error>::into)
             .map_err(LoadError::Deserialization)?;
