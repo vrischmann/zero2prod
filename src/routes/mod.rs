@@ -1,4 +1,5 @@
 use actix_web::HttpResponse;
+pub use admin_dashboard::*;
 pub use home::*;
 pub use login::*;
 pub use newsletters::*;
@@ -6,6 +7,7 @@ use std::fmt;
 pub use subscriptions::*;
 pub use subscriptions_confirm::*;
 
+mod admin_dashboard;
 mod home;
 mod login;
 mod newsletters;

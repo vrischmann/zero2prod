@@ -128,6 +128,7 @@ fn run(
             .route("/", web::get().to(routes::home))
             .route("/login", web::get().to(routes::login_form))
             .route("/login", web::post().to(routes::login))
+            .route("/admin/dashboard", web::get().to(routes::admin_dashboard))
             .app_data(pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
