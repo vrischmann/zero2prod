@@ -345,13 +345,13 @@ mod tests {
             .await
             .expect("Unable to save the session");
 
+        tokio::time::sleep(Duration::milliseconds(200).unsigned_abs()).await;
+
         let loaded_state = store
             .load(&session_key)
             .await
             .expect("Unable to load the session");
 
-        tokio::time::sleep(Duration::milliseconds(200).unsigned_abs()).await;
-
-        assert_none!(loaded_state);
+        assert_none!(loaded_state, "found state for {:?}", session_key);
     }
 }
