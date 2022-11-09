@@ -8,7 +8,7 @@ database:
   port: 5432
   username: "vincent"
   password: "vincent"
-  database_name: zero2prod
+  name: zero2prod_tests
 tem:
   base_url: "https://api.scaleway.com/transactional-email/v1alpha1/regions/fr-par"
   project_id: "myprojectid"
