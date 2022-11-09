@@ -1,5 +1,83 @@
 {
   "db": "PostgreSQL",
+  "02ee76770af87c9c5e07598be6da0694f4c5637f6e5ae8257abc4e15703f8cef": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "DELETE FROM sessions WHERE expires_at <= $1"
+  },
+  "11e96cfd8c2736f13ce55975ea910dd68640f6f14e38a4b3342d514804e3de27": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "DELETE FROM sessions WHERE id = $1"
+  },
+  "1d5b1adad71814b98cd7608c3e4fcc7bd67174aa47e9d9180b805b5fc80b16d9": {
+    "describe": {
+      "columns": [
+        {
+          "name": "n",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT 1 AS n FROM sessions WHERE id = $1"
+  },
+  "1d936117583e442854ba0f3b67642e8d06a10e604959b9bf3dc428c621097396": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea",
+          "Timestamptz",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "UPDATE sessions SET state = $1, expires_at = $2 WHERE id = $3"
+  },
+  "2a0042f4c4b074c14be4d8b3a2cb6928f5db06d6da4dc584538e39eaf577b67f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "username",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n        SELECT username FROM users\n        WHERE user_id = $1\n        "
+  },
   "333ef18481598183cf78d9bc4be3d114891922b9d342d59c6ca49f8f07a431e1": {
     "describe": {
       "columns": [],
@@ -13,6 +91,32 @@
       }
     },
     "query": "\n            INSERT INTO users(user_id, username, password_hash)\n            VALUES ($1, $2, $3)\n            "
+  },
+  "39cc8ff57ddbe5c8fac558315064b3442319a33b89ce8c7bb7fed2f1e4c2fb8f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "state",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "expires_at",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT state, expires_at FROM sessions WHERE id = $1"
   },
   "58f6679743dc8019e1d6e2cce04156e5266cb007f718033888b023948d195e3b": {
     "describe": {
@@ -160,5 +264,20 @@
       }
     },
     "query": "SELECT subscriber_id FROM subscription_tokens WHERE subscription_token = $1"
+  },
+  "c6ec328bca57400093b9c7b81e2ffc23ab0bcc219404141ca26dc89e5f3ff08f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Bytea",
+          "Timestamptz",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "INSERT INTO sessions(id, state, created_at, expires_at) VALUES($1, $2, $3, $4)"
   }
 }
