@@ -16,6 +16,6 @@ tem:
   sender_email: "vincent@zero2prod.rischmann.fr"
   timeout_milliseconds: 10000
 session:
-  ttl: 1000
+  ttl: 7776000000
   cleanup_enabled: true
-  cleanup_interval_milliseconds: 10000
+  cleanup_interval_milliseconds: 3600000
