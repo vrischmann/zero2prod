@@ -140,3 +140,48 @@ async fn new_password_is_too_long() {
     let html_page = app.get_admin_change_password_html().await;
     assert!(html_page.contains("New password is too long"));
 }
+
+#[tokio::test]
+async fn changing_password_works() {
+    let app = spawn_app().await;
+
+    let new_password = Uuid::new_v4().to_string();
+
+    // 1) Login
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    // 2.a) Change the password
+    let response = app
+        .post_admin_change_password(&AdminChangePasswordBody {
+            current_password: app.test_user.password.clone(),
+            new_password: new_password.clone(),
+            new_password_check: new_password.clone(),
+        })
+        .await;
+    assert_is_redirect_to(&response, "/admin/password");
+
+    // 2.b) Follow the redirect
+    let html_page = app.get_admin_change_password_html().await;
+    assert!(html_page.contains("Your password has been changed"));
+
+    // 3.a) Logout
+    let response = app.post_logout().await;
+    assert_is_redirect_to(&response, "/login");
+
+    // 3.b) Follow the redirect
+    let html_page = app.get_login_html().await;
+    assert!(html_page.contains("You have successfully logged out"));
+
+    // 4) Login with the new password
+    let response = app
+        .post_login(&LoginBody {
+            username: app.test_user.username.clone(),
+            password: new_password.clone(),
+        })
+        .await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+}
