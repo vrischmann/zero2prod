@@ -100,6 +100,9 @@ p.flash-warning {
     color: var(--orange-1);
 }
 
+
+/* Admin */
+
 .admin-dashboard {
     display: grid;
     grid-auto-flow: row;
@@ -156,4 +159,14 @@ p.flash-warning {
 
 .admin-menu input:hover {
     background-color: var(--yellow-2);
+}
+
+
+/* Newsletter submission form */
+
+form.newsletter {
+    display: grid;
+    width: 30%;
+    grid-auto-flow: row;
+    row-gap: 0.3em;
 }

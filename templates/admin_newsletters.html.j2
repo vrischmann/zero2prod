@@ -3,4 +3,17 @@
 {% block title %}Home{% endblock %}
 {% block content %}
 
+<form class="newsletter" action="/admin/newsletters" method="POST">
+    <label for="title">Title</label>
+    <input type="text" placeholder="Enter a title" name="title">
+
+    <label for="text_content">Text content</label>
+    <textarea name="text_content" id="text_content" cols="30" rows="10"></textarea>
+
+    <label for="html_content">HTML content</label>
+    <textarea name="html_content" id="html_content" cols="30" rows="10"></textarea>
+
+    <button type="submit">Send</button>
+</form>
+
 {% endblock %}
