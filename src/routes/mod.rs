@@ -2,6 +2,7 @@ use actix_web::http::header::LOCATION;
 use actix_web::HttpResponse;
 pub use admin_change_password::*;
 pub use admin_dashboard::*;
+pub use admin_logout::*;
 pub use home::*;
 pub use login::*;
 pub use newsletters::*;
@@ -11,6 +12,7 @@ pub use subscriptions_confirm::*;
 
 mod admin_change_password;
 mod admin_dashboard;
+mod admin_logout;
 mod home;
 mod login;
 mod newsletters;
@@ -39,6 +41,8 @@ pub fn see_other(location: &str) -> HttpResponse {
         .insert_header((LOCATION, location))
         .finish()
 }
+
+// pub fn flash_messages_to_strings(flash_messages: IncomingFlashMessages)
 
 pub async fn health_check() -> HttpResponse {
     HttpResponse::Ok().finish()

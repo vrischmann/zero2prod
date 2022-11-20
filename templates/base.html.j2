@@ -17,12 +17,19 @@
         </header>
 
         <div class="content">
-            {% for msg in error_messages %}
-            <p class="flash flash-error"><i>{{ msg }}</i></p>
+            {% if let Some(msgs) = flash_messages %}
+            {% for msg in msgs.iter() -%}
+
+            {% let flash_class %}
+            {% if msg.level() == actix_web_flash_messages::Level::Error %}
+            {% let flash_class = "flash-error" %}
+            {% else %}
+            {% let flash_class = "flash-info" %}
+            {% endif %}
+            <p class="flash {{ flash_class }}"><i>{{ msg.content() }}</i></p>
+
             {% endfor %}
-            {% for msg in info_messages %}
-            <p class="flash flash-info"><i>{{ msg }}</i></p>
-            {% endfor %}
+            {% endif %}
 
             {% block content %}{% endblock %}
         </div>
