@@ -298,13 +298,8 @@ pub struct AdminChangePasswordBody {
 }
 
 #[derive(serde::Serialize)]
-pub struct NewsletterContent {
-    pub html: String,
-    pub text: String,
-}
-
-#[derive(serde::Serialize)]
 pub struct SubmitNewsletterBody {
     pub title: String,
-    pub content: NewsletterContent,
+    pub html_content: String,
+    pub text_content: String,
 }
