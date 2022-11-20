@@ -30,8 +30,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
         },
     });
 
-    let response = app.post_newsletters(newsletter_request_body).await;
-
+    let response = app.post_admin_newsletters(newsletter_request_body).await;
     assert_eq!(response.status().as_u16(), 200);
 }
 
@@ -57,8 +56,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
         },
     });
 
-    let response = app.post_newsletters(newsletter_request_body).await;
-
+    let response = app.post_admin_newsletters(newsletter_request_body).await;
     assert_eq!(response.status().as_u16(), 200);
 }
 
@@ -84,12 +82,10 @@ async fn newsletters_returns_400_for_invalid_data() {
     //
 
     for (invalid_body, case) in test_cases {
-        let response = app.post_newsletters(invalid_body).await;
+        let response = app.post_admin_newsletters(invalid_body).await;
 
         let response_status = response.status();
         let response_body = response.text().await.expect("Failed to get response body");
-
-        println!("response: {}", response_body);
 
         assert_eq!(
             response_status, 400,
