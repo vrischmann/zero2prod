@@ -70,14 +70,12 @@ pub async fn publish_newsletter(
 ) -> Result<HttpResponse, InternalError<PublishError>> {
     let user_id = user_id.into_inner();
 
-    let username_result: Result<String, PublishError> = get_username(&pool, *user_id)
+    let username_result = get_username(&pool, *user_id)
         .await
-        .map_err(Into::<PublishError>::into);
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500);
 
-    let username_result2: Result<String, InternalError<PublishError>> =
-        username_result.map_err(e500);
-
-    let username = username_result2?;
+    let username = username_result?;
     tracing::Span::current().record("username", &tracing::field::display(&username));
 
     // Validate the content
