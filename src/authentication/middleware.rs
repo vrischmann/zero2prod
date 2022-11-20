@@ -1,4 +1,4 @@
-use crate::routes::{see_other, e500};
+use crate::routes::{e500, see_other};
 use crate::sessions::TypedSession;
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
