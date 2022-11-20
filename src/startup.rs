@@ -128,6 +128,7 @@ fn run(
             .route("/", web::get().to(routes::home))
             .route("/login", web::get().to(routes::login_form))
             .route("/login", web::post().to(routes::login))
+            .route("/admin/logout", web::post().to(routes::logout))
             .route("/admin/dashboard", web::get().to(routes::admin_dashboard))
             .route(
                 "/admin/password",
