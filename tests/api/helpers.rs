@@ -124,6 +124,19 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
+    pub async fn get_admin_newsletters(&self) -> reqwest::Response {
+        self.http_client
+            .get(&format!("{}/admin/newsletters", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_admin_newsletters_html(&self) -> String {
+        let response = self.get_admin_newsletters().await;
+        response.text().await.unwrap()
+    }
+
     pub async fn post_admin_newsletters<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
