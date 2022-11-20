@@ -1,5 +1,5 @@
 use crate::authentication::UserId;
-use crate::routes::to_internal_server_error;
+use crate::routes::e500;
 use actix_web::http::header::ContentType;
 use actix_web::web;
 use actix_web::HttpResponse;
@@ -21,9 +21,7 @@ pub async fn admin_dashboard(
 ) -> Result<HttpResponse, actix_web::Error> {
     let user_id = user_id.into_inner();
 
-    let username = get_username(&pool, *user_id)
-        .await
-        .map_err(to_internal_server_error)?;
+    let username = get_username(&pool, *user_id).await.map_err(e500)?;
 
     let tpl = LoginTemplate {
         flash_messages: None,
