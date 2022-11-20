@@ -1,7 +1,7 @@
 use crate::authentication::{change_password, validate_credentials};
 use crate::authentication::{AuthError, Credentials, UserId};
 use crate::routes::admin_dashboard::get_username;
-use crate::routes::{error_chain_fmt, see_other, to_internal_server_error};
+use crate::routes::{e500, error_chain_fmt, see_other};
 use actix_web::http::header::ContentType;
 use actix_web::web;
 use actix_web::HttpResponse;
@@ -76,9 +76,7 @@ pub async fn admin_change_password(
     }
 
     // Obtain the username
-    let username = get_username(&pool, *user_id)
-        .await
-        .map_err(to_internal_server_error)?;
+    let username = get_username(&pool, *user_id).await.map_err(e500)?;
 
     // Validate the credentials
     let credentials = Credentials {
@@ -92,14 +90,14 @@ pub async fn admin_change_password(
                 FlashMessage::error("The current password is incorrect").send();
                 return Ok(see_other("/admin/password"));
             }
-            AuthError::Unexpected(_) => return Err(to_internal_server_error(err)),
+            AuthError::Unexpected(_) => return Err(e500(err).into()),
         }
     }
 
     // All good; change the password
     change_password(&pool, *user_id, form.new_password)
         .await
-        .map_err(to_internal_server_error)?;
+        .map_err(e500)?;
 
     FlashMessage::warning("Your password has been changed").send();
 
