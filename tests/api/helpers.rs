@@ -102,6 +102,31 @@ impl TestApp {
         response.text().await.unwrap()
     }
 
+    pub async fn get_admin_change_password(&self) -> reqwest::Response {
+        self.http_client
+            .get(&format!("{}/admin/password", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_admin_change_password_html(&self) -> String {
+        let response = self.get_admin_change_password().await;
+        response.text().await.unwrap()
+    }
+
+    pub async fn post_admin_change_password<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.http_client
+            .post(&format!("{}/admin/password", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
         let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
 
@@ -234,7 +259,13 @@ impl TestUser {
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
-    assert_eq!(response.status().as_u16(), 303);
+    assert_eq!(
+        response.status().as_u16(),
+        303,
+        "got {}, expected {}",
+        response.status().as_u16(),
+        303
+    );
     assert_eq!(response.headers().get("Location").unwrap(), location);
 }
 
@@ -248,4 +279,11 @@ pub struct SubscriptionBody {
 pub struct LoginBody {
     pub username: String,
     pub password: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct AdminChangePasswordBody {
+    pub current_password: String,
+    pub new_password: String,
+    pub new_password_check: String,
 }

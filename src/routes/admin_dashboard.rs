@@ -1,3 +1,4 @@
+use crate::routes::to_internal_server_error;
 use crate::sessions::TypedSession;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
@@ -5,15 +6,7 @@ use actix_web::web;
 use actix_web::HttpResponse;
 use anyhow::Context;
 use askama::Template;
-use std::fmt;
 use uuid::Uuid;
-
-fn internal_server_error<T>(err: T) -> actix_web::Error
-where
-    T: fmt::Debug + fmt::Display + 'static,
-{
-    actix_web::error::ErrorInternalServerError(err)
-}
 
 #[derive(askama::Template)]
 #[template(path = "admin_dashboard.html.j2")]
@@ -27,12 +20,12 @@ pub async fn admin_dashboard(
     pool: web::Data<sqlx::PgPool>,
     session: TypedSession,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let get_user_id_result = session.get_user_id().map_err(internal_server_error)?;
+    let get_user_id_result = session.get_user_id().map_err(to_internal_server_error)?;
 
     let username = match get_user_id_result {
         Some(user_id) => get_username(&pool, user_id)
             .await
-            .map_err(internal_server_error)?,
+            .map_err(to_internal_server_error)?,
         None => {
             return Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
@@ -52,7 +45,7 @@ pub async fn admin_dashboard(
 }
 
 #[tracing::instrument(name = "Get username", skip(pool))]
-async fn get_username(pool: &sqlx::PgPool, user_id: Uuid) -> Result<String, anyhow::Error> {
+pub async fn get_username(pool: &sqlx::PgPool, user_id: Uuid) -> Result<String, anyhow::Error> {
     let row = sqlx::query!(
         r#"
         SELECT username FROM users
