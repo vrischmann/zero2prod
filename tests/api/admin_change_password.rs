@@ -52,7 +52,6 @@ async fn new_password_fields_must_match() {
 
     // Follow the redirect
     let html_page = app.get_admin_change_password_html().await;
-
     assert!(html_page.contains("You entered two different new passwords"));
 }
 
@@ -82,7 +81,6 @@ async fn current_password_is_invalid() {
 
     // Follow the redirect
     let html_page = app.get_admin_change_password_html().await;
-
     assert!(html_page.contains("The current password is incorrect"));
 }
 
@@ -140,6 +138,5 @@ async fn new_password_is_too_long() {
 
     // Follow the redirect
     let html_page = app.get_admin_change_password_html().await;
-
     assert!(html_page.contains("New password is too long"));
 }
