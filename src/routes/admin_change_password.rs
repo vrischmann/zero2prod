@@ -1,4 +1,5 @@
-use crate::authentication::{change_password, validate_credentials, AuthError, Credentials};
+use crate::authentication::{change_password, validate_credentials};
+use crate::authentication::{AuthError, Credentials, UserId};
 use crate::routes::admin_dashboard::get_username;
 use crate::routes::{error_chain_fmt, see_other, to_internal_server_error};
 use crate::sessions::TypedSession;
@@ -57,15 +58,10 @@ pub struct ChangePasswordFormData {
 
 pub async fn admin_change_password(
     pool: web::Data<sqlx::PgPool>,
-    session: TypedSession,
+    user_id: web::ReqData<UserId>,
     form: web::Form<ChangePasswordFormData>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    // Get the user id from the session
-    let user_id_result = session.get_user_id().map_err(to_internal_server_error)?;
-    if user_id_result.is_none() {
-        return Ok(see_other("/login"));
-    }
-    let user_id = user_id_result.unwrap();
+    let user_id = user_id.into_inner();
 
     let form = form.0;
 
@@ -88,7 +84,7 @@ pub async fn admin_change_password(
     }
 
     // Obtain the username
-    let username = get_username(&pool, user_id)
+    let username = get_username(&pool, *user_id)
         .await
         .map_err(to_internal_server_error)?;
 
@@ -109,7 +105,7 @@ pub async fn admin_change_password(
     }
 
     // All good; change the password
-    change_password(&pool, user_id, form.new_password)
+    change_password(&pool, *user_id, form.new_password)
         .await
         .map_err(to_internal_server_error)?;
 
