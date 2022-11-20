@@ -49,7 +49,6 @@ impl TestApp {
     {
         self.http_client
             .post(&format!("{}/subscriptions", &self.address))
-            .header("Content-Type", "application/x-www-form-urlencoded")
             .form(body)
             .send()
             .await
