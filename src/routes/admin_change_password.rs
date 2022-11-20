@@ -2,7 +2,6 @@ use crate::authentication::{change_password, validate_credentials};
 use crate::authentication::{AuthError, Credentials, UserId};
 use crate::routes::admin_dashboard::get_username;
 use crate::routes::{error_chain_fmt, see_other, to_internal_server_error};
-use crate::sessions::TypedSession;
 use actix_web::http::header::ContentType;
 use actix_web::web;
 use actix_web::HttpResponse;
@@ -18,16 +17,9 @@ pub struct ChangePasswordTemplate {
 }
 
 pub async fn admin_change_password_form(
-    session: TypedSession,
+    _user_id: web::ReqData<UserId>,
     flash_messages: IncomingFlashMessages,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user_id_result = session.get_user_id().map_err(to_internal_server_error)?;
-    if user_id_result.is_none() {
-        return Ok(see_other("/login"));
-    }
-
-    //
-
     let tpl = ChangePasswordTemplate {
         flash_messages: Some(flash_messages),
     };
