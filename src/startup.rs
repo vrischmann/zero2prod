@@ -129,7 +129,6 @@ fn run(
             .route("/login", web::post().to(routes::login))
             .route("/subscriptions", web::post().to(routes::subscribe))
             .route("/subscriptions/confirm", web::get().to(routes::confirm))
-            .route("/newsletters", web::post().to(routes::publish_newsletter))
             .service(
                 web::scope("/admin")
                     .wrap(from_fn(reject_anonymous_users))
@@ -139,7 +138,11 @@ fn run(
                         "/password",
                         web::get().to(routes::admin_change_password_form),
                     )
-                    .route("/password", web::post().to(routes::admin_change_password)),
+                    .route("/password", web::post().to(routes::admin_change_password))
+                    .route(
+                        "/newsletters",
+                        web::post().to(routes::admin_publish_newsletter),
+                    ),
             )
             .app_data(pool.clone())
             .app_data(email_client.clone())

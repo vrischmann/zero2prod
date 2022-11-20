@@ -1,21 +1,22 @@
 use actix_web::http::header::LOCATION;
 use actix_web::HttpResponse;
+use std::fmt;
+
 pub use admin_change_password::*;
 pub use admin_dashboard::*;
 pub use admin_logout::*;
+pub use admin_newsletters::*;
 pub use home::*;
 pub use login::*;
-pub use newsletters::*;
-use std::fmt;
 pub use subscriptions::*;
 pub use subscriptions_confirm::*;
 
 mod admin_change_password;
 mod admin_dashboard;
 mod admin_logout;
+mod admin_newsletters;
 mod home;
 mod login;
-mod newsletters;
 mod subscriptions;
 mod subscriptions_confirm;
 

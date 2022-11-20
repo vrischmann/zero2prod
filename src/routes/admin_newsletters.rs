@@ -64,7 +64,7 @@ pub struct Content {
         user_id = tracing::field::Empty
     )
 )]
-pub async fn publish_newsletter(
+pub async fn admin_publish_newsletter(
     pool: web::Data<sqlx::PgPool>,
     email_client: web::Data<tem::Client>,
     request: HttpRequest,
