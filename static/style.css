@@ -8,6 +8,10 @@
     --red-2: #dc2626;
     --yellow-1: #facc15;
     --yellow-2: #ca8a04;
+    --orange-1: #fb923c;
+    --orange-2: #ea580c;
+    --green-1: #4ade80;
+    --green-2: #16a34a;
 }
 
 html {
@@ -90,6 +94,10 @@ p.flash-error {
 
 p.flash-info {
     color: var(--yellow-1);
+}
+
+p.flash-warning {
+    color: var(--orange-1);
 }
 
 .admin-menu {
