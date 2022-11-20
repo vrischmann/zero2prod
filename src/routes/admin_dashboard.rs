@@ -1,7 +1,6 @@
+use crate::authentication::UserId;
 use crate::routes::to_internal_server_error;
-use crate::sessions::TypedSession;
 use actix_web::http::header::ContentType;
-use actix_web::http::header::LOCATION;
 use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web_flash_messages::IncomingFlashMessages;
@@ -18,20 +17,13 @@ pub struct LoginTemplate {
 
 pub async fn admin_dashboard(
     pool: web::Data<sqlx::PgPool>,
-    session: TypedSession,
+    user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let get_user_id_result = session.get_user_id().map_err(to_internal_server_error)?;
+    let user_id = user_id.into_inner();
 
-    let username = match get_user_id_result {
-        Some(user_id) => get_username(&pool, user_id)
-            .await
-            .map_err(to_internal_server_error)?,
-        None => {
-            return Ok(HttpResponse::SeeOther()
-                .insert_header((LOCATION, "/login"))
-                .finish());
-        }
-    };
+    let username = get_username(&pool, *user_id)
+        .await
+        .map_err(to_internal_server_error)?;
 
     let tpl = LoginTemplate {
         flash_messages: None,
