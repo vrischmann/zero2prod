@@ -13,7 +13,11 @@
     <div class="container">
         <header class="menu">
             <a href="/subscribe">Subscribe</a>
+            {% if user_id.is_some() %}
+            <a href="/admin/dashboard">Dashboard</a>
+            {% else %}
             <a href="/login">Login</a>
+            {% endif %}
         </header>
 
         <div class="content">

@@ -9,18 +9,21 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use askama::Template;
 use secrecy::{ExposeSecret, Secret};
 use std::fmt;
+use uuid::Uuid;
 
 #[derive(askama::Template)]
 #[template(path = "admin_change_password.html.j2")]
 pub struct ChangePasswordTemplate {
+    user_id: Option<Uuid>,
     flash_messages: Option<IncomingFlashMessages>,
 }
 
 pub async fn admin_change_password_form(
-    _user_id: web::ReqData<UserId>,
+    user_id: web::ReqData<UserId>,
     flash_messages: IncomingFlashMessages,
 ) -> Result<HttpResponse, actix_web::Error> {
     let tpl = ChangePasswordTemplate {
+        user_id: Some(*user_id.into_inner()),
         flash_messages: Some(flash_messages),
     };
 

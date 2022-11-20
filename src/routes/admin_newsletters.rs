@@ -12,17 +12,21 @@ use anyhow::anyhow;
 use askama::Template;
 use std::fmt;
 use tracing::error;
+use uuid::Uuid;
 
 #[derive(askama::Template)]
 #[template(path = "admin_newsletters.html.j2")]
 pub struct NewsletterTemplate {
+    user_id: Option<Uuid>,
     flash_messages: Option<IncomingFlashMessages>,
 }
 
 pub async fn newsletter_form(
+    user_id: web::ReqData<UserId>,
     flash_messages: IncomingFlashMessages,
 ) -> Result<HttpResponse, actix_web::Error> {
     let tpl = NewsletterTemplate {
+        user_id: Some(*user_id.into_inner()),
         flash_messages: Some(flash_messages),
     };
 

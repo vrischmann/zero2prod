@@ -1,5 +1,5 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
-use crate::routes::error_chain_fmt;
+use crate::routes::{e500, error_chain_fmt};
 use crate::sessions::TypedSession;
 use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
@@ -9,21 +9,30 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use askama::Template;
 use secrecy::Secret;
 use std::fmt;
+use uuid::Uuid;
 
 #[derive(askama::Template)]
 #[template(path = "login.html.j2")]
 pub struct LoginTemplate {
+    user_id: Option<Uuid>,
     flash_messages: Option<IncomingFlashMessages>,
 }
 
-pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+pub async fn login_form(
+    session: TypedSession,
+    flash_messages: IncomingFlashMessages,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user_id = session.get_user_id().map_err(e500)?;
+
     let tpl = LoginTemplate {
+        user_id,
         flash_messages: Some(flash_messages),
     };
 
-    HttpResponse::Ok()
+    let response = HttpResponse::Ok()
         .content_type(ContentType::html())
-        .body(tpl.render().unwrap())
+        .body(tpl.render().unwrap());
+    Ok(response)
 }
 
 #[derive(thiserror::Error)]
