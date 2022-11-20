@@ -1,7 +1,6 @@
-use crate::helpers::{
-    spawn_app, spawn_app_with_pool, ConfirmationLinks, LoginBody, SubmitNewsletterBody,
-    SubscriptionBody, TestApp,
-};
+use crate::helpers::{assert_is_redirect_to, spawn_app, spawn_app_with_pool};
+use crate::helpers::{ConfirmationLinks, TestApp};
+use crate::helpers::{LoginBody, SubmitNewsletterBody, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
@@ -66,6 +65,39 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
     assert_eq!(response.status().as_u16(), 200);
+}
+
+#[sqlx::test]
+async fn failed_sending_sets_a_flash_message(pool: sqlx::PgPool) {
+    let app = spawn_app_with_pool(pool).await;
+
+    create_confirmed_subscriber(&app).await;
+
+    Mock::given(any())
+        .respond_with(ResponseTemplate::new(401))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    // Try to send the newsletter, expect it to fail
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter body as HTML</p>".to_string(),
+    };
+
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
+    assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // Follow the redirect
+    let html_page = app.get_admin_newsletters_html().await;
+    assert!(html_page.contains("Unable to send newsletter to subscriber"));
 }
 
 #[tokio::test]

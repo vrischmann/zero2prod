@@ -1,13 +1,13 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
-use crate::routes::{e500, error_chain_fmt, get_username};
+use crate::routes::{e500, error_chain_fmt, get_username, see_other};
 use crate::tem;
 use actix_web::error::InternalError;
 use actix_web::http::header::ContentType;
 use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::HttpResponse;
-use actix_web_flash_messages::IncomingFlashMessages;
+use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use anyhow::anyhow;
 use askama::Template;
 use std::fmt;
@@ -19,9 +19,11 @@ pub struct NewsletterTemplate {
     flash_messages: Option<IncomingFlashMessages>,
 }
 
-pub async fn newsletter_form() -> Result<HttpResponse, actix_web::Error> {
+pub async fn newsletter_form(
+    flash_messages: IncomingFlashMessages,
+) -> Result<HttpResponse, actix_web::Error> {
     let tpl = NewsletterTemplate {
-        flash_messages: None,
+        flash_messages: Some(flash_messages),
     };
 
     Ok(HttpResponse::Ok()
@@ -35,8 +37,6 @@ pub enum PublishError {
     MissingTitle,
     #[error("missing content")]
     MissingContent,
-    #[error("sending failed")]
-    SendFailure(#[source] reqwest::Error, String),
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -100,18 +100,23 @@ pub async fn publish_newsletter(
     for subscriber in subscribers {
         match subscriber {
             Ok(subscriber) => {
-                email_client
+                let send_result = email_client
                     .send_email(
                         &subscriber.email,
                         &form.title,
                         &form.html_content,
                         &form.text_content,
                     )
-                    .await
-                    .map_err(|err| {
-                        let err = PublishError::SendFailure(err, subscriber.email.to_string());
-                        InternalError::new(err, StatusCode::INTERNAL_SERVER_ERROR)
-                    })?;
+                    .await;
+
+                if send_result.is_err() {
+                    FlashMessage::error(&format!(
+                        "Unable to send newsletter to subscriber {}",
+                        &subscriber.email
+                    ))
+                    .send();
+                    return Ok(see_other("/admin/newsletters"));
+                }
             }
             Err(err) => {
                 error!(
