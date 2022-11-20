@@ -5,13 +5,19 @@
 
 <h1>Welcome {{ username }}!</h1>
 
-<ul class="admin-menu">
-    <li><a href="/admin/password">Change password</a></li>
-    <li>
-        <form name="logout" action="/admin/logout" method="POST">
-            <input type="submit" value="Logout" />
-        </form>
-    </li>
-</ul>
+<div class="admin-dashboard">
+    <ul class="admin-menu">
+        <li><a href="/admin/password">Change password</a></li>
+        <li>
+            <form name="logout" action="/admin/logout" method="POST">
+                <input type="submit" value="Logout" />
+            </form>
+        </li>
+    </ul>
+
+    <ul class="admin-menu">
+        <li><a href="/admin/newsletters">Send a newsletter issue</a></li>
+    </ul>
+</div>
 
 {% endblock %}

@@ -100,6 +100,12 @@ p.flash-warning {
     color: var(--orange-1);
 }
 
+.admin-dashboard {
+    display: grid;
+    grid-auto-flow: row;
+    row-gap: 100px;
+}
+
 .admin-menu {
     display: grid;
     grid-auto-flow: column;
