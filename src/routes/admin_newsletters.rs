@@ -1,17 +1,14 @@
-use crate::authentication::{validate_credentials, AuthError, Credentials, UserId};
+use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
 use crate::routes::{error_chain_fmt, get_username};
 use crate::tem;
-use actix_web::http::header;
 use actix_web::http::header::ContentType;
-use actix_web::http::header::{HeaderMap, HeaderValue};
 use actix_web::http::StatusCode;
 use actix_web::web;
-use actix_web::{HttpRequest, HttpResponse};
+use actix_web::HttpResponse;
 use actix_web_flash_messages::IncomingFlashMessages;
 use anyhow::{anyhow, Context};
 use askama::Template;
-use secrecy::Secret;
 use std::fmt;
 use tracing::error;
 
