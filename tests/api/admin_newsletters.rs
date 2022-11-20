@@ -1,10 +1,10 @@
 use crate::helpers::{
-    spawn_app, spawn_app_with_pool, ConfirmationLinks, LoginBody, SubscriptionBody, TestApp,
+    spawn_app, spawn_app_with_pool, ConfirmationLinks, LoginBody, NewsletterContent,
+    SubmitNewsletterBody, SubscriptionBody, TestApp,
 };
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
-use serde_json::json;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -28,15 +28,15 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
 
     //
 
-    let newsletter_request_body = json!({
-        "title": "Newsletter title",
-        "content": {
-            "text": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>"
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        content: NewsletterContent {
+            text: "Newsletter body as plain text".to_string(),
+            html: "<p>Newsletter body as HTML</p>".to_string(),
         },
-    });
+    };
 
-    let response = app.post_admin_newsletters(newsletter_request_body).await;
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
     assert_eq!(response.status().as_u16(), 200);
 }
 
@@ -60,15 +60,15 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
 
     //
 
-    let newsletter_request_body = json!({
-        "title": "Newsletter title",
-        "content": {
-            "text": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>"
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        content: NewsletterContent {
+            text: "Newsletter body as plain text".to_string(),
+            html: "<p>Newsletter body as HTML</p>".to_string(),
         },
-    });
+    };
 
-    let response = app.post_admin_newsletters(newsletter_request_body).await;
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
     assert_eq!(response.status().as_u16(), 200);
 }
 
@@ -86,21 +86,29 @@ async fn newsletters_returns_400_for_invalid_data() {
 
     let test_cases = vec![
         (
-            json!({
-                "content": {"text":"Text","html":"HTML"},
-            }),
+            SubmitNewsletterBody {
+                title: "".to_string(),
+                content: NewsletterContent {
+                    text: "Text".to_string(),
+                    html: "HTML".to_string(),
+                },
+            },
             "missing title",
         ),
         (
-            json!({
-                "title":"My newsletter",
-            }),
-            "missing title",
+            SubmitNewsletterBody {
+                title: "My title".to_string(),
+                content: NewsletterContent {
+                    text: "".to_string(),
+                    html: "".to_string(),
+                },
+            },
+            "missing content",
         ),
     ];
 
     for (invalid_body, case) in test_cases {
-        let response = app.post_admin_newsletters(invalid_body).await;
+        let response = app.post_admin_newsletters(&invalid_body).await;
 
         let response_status = response.status();
         let _response_body = response.text().await.expect("Failed to get response body");

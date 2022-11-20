@@ -124,10 +124,13 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_admin_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+    pub async fn post_admin_newsletters<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
         self.http_client
             .post(&format!("{}/admin/newsletters", &self.address))
-            .json(&body)
+            .form(body)
             .send()
             .await
             .expect("Failed to execute request.")
@@ -292,4 +295,16 @@ pub struct AdminChangePasswordBody {
     pub current_password: String,
     pub new_password: String,
     pub new_password_check: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct NewsletterContent {
+    pub html: String,
+    pub text: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct SubmitNewsletterBody {
+    pub title: String,
+    pub content: NewsletterContent,
 }
