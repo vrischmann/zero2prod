@@ -1,10 +1,10 @@
-use crate::helpers::ConfirmationLinks;
-use crate::helpers::{spawn_app, spawn_app_with_pool, SubscriptionBody, TestApp};
+use crate::helpers::{
+    spawn_app, spawn_app_with_pool, ConfirmationLinks, LoginBody, SubscriptionBody, TestApp,
+};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
 use serde_json::json;
-use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -19,6 +19,12 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
         .expect(0)
         .mount(&app.email_server)
         .await;
+
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
 
     //
 
@@ -46,6 +52,12 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
         .mount(&app.email_server)
         .await;
 
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
     //
 
     let newsletter_request_body = json!({
@@ -64,6 +76,14 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
 async fn newsletters_returns_400_for_invalid_data() {
     let app = spawn_app().await;
 
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    //
+
     let test_cases = vec![
         (
             json!({
@@ -79,13 +99,11 @@ async fn newsletters_returns_400_for_invalid_data() {
         ),
     ];
 
-    //
-
     for (invalid_body, case) in test_cases {
         let response = app.post_admin_newsletters(invalid_body).await;
 
         let response_status = response.status();
-        let response_body = response.text().await.expect("Failed to get response body");
+        let _response_body = response.text().await.expect("Failed to get response body");
 
         assert_eq!(
             response_status, 400,
@@ -93,86 +111,6 @@ async fn newsletters_returns_400_for_invalid_data() {
             case,
         )
     }
-}
-
-#[tokio::test]
-async fn requests_missing_authorization_are_reject() {
-    let app = spawn_app().await;
-
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .json(&json!({
-            "title": "Newsletter title",
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>"
-            },
-        }))
-        .send()
-        .await
-        .expect("Failed to execute request");
-
-    assert_eq!(response.status().as_u16(), 401);
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
-}
-
-#[tokio::test]
-async fn non_existing_user_is_rejected() {
-    let app = spawn_app().await;
-
-    let username = Uuid::new_v4().to_string();
-    let password = Uuid::new_v4().to_string();
-
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .basic_auth(username, Some(password))
-        .json(&json!({
-            "title": "Newsletter title",
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>"
-            },
-        }))
-        .send()
-        .await
-        .expect("Failed to execute request");
-
-    assert_eq!(response.status().as_u16(), 401);
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
-}
-
-#[tokio::test]
-async fn invalid_password_is_rejected() {
-    let app = spawn_app().await;
-
-    let username = &app.test_user.username;
-    let password = Uuid::new_v4().to_string();
-
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .basic_auth(username, Some(password))
-        .json(&json!({
-            "title": "Newsletter title",
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>"
-            },
-        }))
-        .send()
-        .await
-        .expect("Failed to execute request");
-
-    assert_eq!(response.status().as_u16(), 401);
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
