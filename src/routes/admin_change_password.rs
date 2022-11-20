@@ -1,4 +1,4 @@
-use crate::authentication::{validate_credentials, AuthError, Credentials};
+use crate::authentication::{change_password, validate_credentials, AuthError, Credentials};
 use crate::routes::admin_dashboard::get_username;
 use crate::routes::{error_chain_fmt, see_other, to_internal_server_error};
 use crate::sessions::TypedSession;
@@ -67,6 +67,8 @@ pub async fn admin_change_password(
     }
     let user_id = user_id_result.unwrap();
 
+    let form = form.0;
+
     // Validate new password
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
         FlashMessage::error(
@@ -93,7 +95,7 @@ pub async fn admin_change_password(
     // Validate the credentials
     let credentials = Credentials {
         username,
-        password: form.0.current_password,
+        password: form.current_password,
     };
 
     if let Err(err) = validate_credentials(&pool, credentials).await {
@@ -106,5 +108,12 @@ pub async fn admin_change_password(
         }
     }
 
-    todo!()
+    // All good; change the password
+    change_password(&pool, user_id, form.new_password)
+        .await
+        .map_err(to_internal_server_error)?;
+
+    FlashMessage::warning("Your password has been changed").send();
+
+    Ok(see_other("/admin/password"))
 }
