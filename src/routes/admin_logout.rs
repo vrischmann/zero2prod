@@ -1,4 +1,4 @@
-use crate::routes::{see_other, to_internal_server_error};
+use crate::routes::{e500, see_other};
 use crate::sessions::TypedSession;
 use actix_web::HttpResponse;
 use actix_web_flash_messages::FlashMessage;
@@ -12,7 +12,7 @@ use actix_web_flash_messages::FlashMessage;
     )
 )]
 pub async fn logout(session: TypedSession) -> Result<HttpResponse, actix_web::Error> {
-    let user_id = session.get_user_id().map_err(to_internal_server_error)?;
+    let user_id = session.get_user_id().map_err(e500)?;
     match user_id {
         Some(_) => {
             session.logout();

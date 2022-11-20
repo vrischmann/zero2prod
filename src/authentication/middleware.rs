@@ -1,4 +1,4 @@
-use crate::routes::{see_other, to_internal_server_error};
+use crate::routes::{see_other, e500};
 use crate::sessions::TypedSession;
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
@@ -36,7 +36,7 @@ pub async fn reject_anonymous_users(
     };
     let session = session_result?;
 
-    let user_id_result = session.get_user_id().map_err(to_internal_server_error)?;
+    let user_id_result = session.get_user_id().map_err(e500)?;
     match user_id_result {
         Some(user_id) => {
             req.extensions_mut().insert(UserId(user_id));

@@ -31,13 +31,6 @@ pub fn error_chain_fmt(err: &impl std::error::Error, f: &mut fmt::Formatter<'_>)
     Ok(())
 }
 
-pub fn to_internal_server_error<T>(err: T) -> actix_web::Error
-where
-    T: fmt::Debug + fmt::Display + 'static,
-{
-    actix_web::error::ErrorInternalServerError(err)
-}
-
 pub fn e500<T>(err: T) -> actix_web::error::InternalError<T>
 where
     T: fmt::Debug + fmt::Display + 'static,
