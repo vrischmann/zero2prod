@@ -5,7 +5,7 @@ use actix_web::error::InternalError;
 use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::web;
 use actix_web::HttpResponse;
-use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages, Level as FlashLevel};
+use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use askama::Template;
 use secrecy::Secret;
 use std::fmt;
@@ -13,23 +13,12 @@ use std::fmt;
 #[derive(askama::Template)]
 #[template(path = "login.html.j2")]
 pub struct LoginTemplate {
-    error_messages: Vec<String>,
-    info_messages: Vec<String>,
+    flash_messages: Option<IncomingFlashMessages>,
 }
 
 pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
-    let mut error_messages = Vec::<String>::new();
-
-    for m in flash_messages.iter() {
-        if m.level() != FlashLevel::Error {
-            continue;
-        }
-        error_messages.push(m.content().to_string());
-    }
-
     let tpl = LoginTemplate {
-        error_messages,
-        info_messages: Vec::new(),
+        flash_messages: Some(flash_messages),
     };
 
     HttpResponse::Ok()

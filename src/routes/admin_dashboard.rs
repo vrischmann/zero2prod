@@ -4,6 +4,7 @@ use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
 use actix_web::web;
 use actix_web::HttpResponse;
+use actix_web_flash_messages::IncomingFlashMessages;
 use anyhow::Context;
 use askama::Template;
 use uuid::Uuid;
@@ -11,8 +12,7 @@ use uuid::Uuid;
 #[derive(askama::Template)]
 #[template(path = "admin_dashboard.html.j2")]
 pub struct LoginTemplate {
-    error_messages: Vec<String>,
-    info_messages: Vec<String>,
+    flash_messages: Option<IncomingFlashMessages>,
     username: String,
 }
 
@@ -34,8 +34,7 @@ pub async fn admin_dashboard(
     };
 
     let tpl = LoginTemplate {
-        error_messages: Vec::new(),
-        info_messages: Vec::new(),
+        flash_messages: None,
         username,
     };
 

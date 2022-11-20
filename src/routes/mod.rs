@@ -42,6 +42,8 @@ pub fn see_other(location: &str) -> HttpResponse {
         .finish()
 }
 
+// pub fn flash_messages_to_strings(flash_messages: IncomingFlashMessages)
+
 pub async fn health_check() -> HttpResponse {
     HttpResponse::Ok().finish()
 }

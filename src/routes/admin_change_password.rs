@@ -5,7 +5,7 @@ use crate::sessions::TypedSession;
 use actix_web::http::header::ContentType;
 use actix_web::web;
 use actix_web::HttpResponse;
-use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages, Level as FlashLevel};
+use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use askama::Template;
 use secrecy::{ExposeSecret, Secret};
 use std::fmt;
@@ -13,8 +13,7 @@ use std::fmt;
 #[derive(askama::Template)]
 #[template(path = "admin_change_password.html.j2")]
 pub struct ChangePasswordTemplate {
-    error_messages: Vec<String>,
-    info_messages: Vec<String>,
+    flash_messages: Option<IncomingFlashMessages>,
 }
 
 pub async fn admin_change_password_form(
@@ -26,20 +25,10 @@ pub async fn admin_change_password_form(
         return Ok(see_other("/login"));
     }
 
-    let mut error_messages = Vec::<String>::new();
-
-    for m in flash_messages.iter() {
-        if m.level() != FlashLevel::Error {
-            continue;
-        }
-        error_messages.push(m.content().to_string());
-    }
-
     //
 
     let tpl = ChangePasswordTemplate {
-        error_messages,
-        info_messages: Vec::new(),
+        flash_messages: Some(flash_messages),
     };
 
     Ok(HttpResponse::Ok()
