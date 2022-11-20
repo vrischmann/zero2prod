@@ -1,6 +1,6 @@
 use crate::helpers::{
-    spawn_app, spawn_app_with_pool, ConfirmationLinks, LoginBody, NewsletterContent,
-    SubmitNewsletterBody, SubscriptionBody, TestApp,
+    spawn_app, spawn_app_with_pool, ConfirmationLinks, LoginBody, SubmitNewsletterBody,
+    SubscriptionBody, TestApp,
 };
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
@@ -30,10 +30,8 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
 
     let newsletter_request_body = SubmitNewsletterBody {
         title: "Newsletter title".to_string(),
-        content: NewsletterContent {
-            text: "Newsletter body as plain text".to_string(),
-            html: "<p>Newsletter body as HTML</p>".to_string(),
-        },
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter body as HTML</p>".to_string(),
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
@@ -62,10 +60,8 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
 
     let newsletter_request_body = SubmitNewsletterBody {
         title: "Newsletter title".to_string(),
-        content: NewsletterContent {
-            text: "Newsletter body as plain text".to_string(),
-            html: "<p>Newsletter body as HTML</p>".to_string(),
-        },
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter body as HTML</p>".to_string(),
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
@@ -88,20 +84,16 @@ async fn newsletters_returns_400_for_invalid_data() {
         (
             SubmitNewsletterBody {
                 title: "".to_string(),
-                content: NewsletterContent {
-                    text: "Text".to_string(),
-                    html: "HTML".to_string(),
-                },
+                text_content: "Text".to_string(),
+                html_content: "HTML".to_string(),
             },
             "missing title",
         ),
         (
             SubmitNewsletterBody {
                 title: "My title".to_string(),
-                content: NewsletterContent {
-                    text: "".to_string(),
-                    html: "".to_string(),
-                },
+                text_content: "".to_string(),
+                html_content: "".to_string(),
             },
             "missing content",
         ),
