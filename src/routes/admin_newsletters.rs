@@ -1,13 +1,14 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
-use crate::routes::{error_chain_fmt, get_username};
+use crate::routes::{e500, error_chain_fmt, get_username};
 use crate::tem;
+use actix_web::error::InternalError;
 use actix_web::http::header::ContentType;
 use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web_flash_messages::IncomingFlashMessages;
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use askama::Template;
 use std::fmt;
 use tracing::error;
@@ -30,6 +31,12 @@ pub async fn newsletter_form() -> Result<HttpResponse, actix_web::Error> {
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
+    #[error("missing title")]
+    MissingTitle,
+    #[error("missing content")]
+    MissingContent,
+    #[error("sending failed")]
+    SendFailure(#[source] reqwest::Error, String),
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -40,29 +47,16 @@ impl fmt::Debug for PublishError {
     }
 }
 
-impl actix_web::ResponseError for PublishError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            Self::Unexpected(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
-        }
-    }
-}
-
 #[derive(serde::Deserialize)]
-pub struct BodyData {
+pub struct NewsletterData {
     title: String,
-    content: Content,
-}
-
-#[derive(serde::Deserialize)]
-pub struct Content {
-    html: String,
-    text: String,
+    text_content: String,
+    html_content: String,
 }
 
 #[tracing::instrument(
     name = "Publish newsletter",
-    skip(pool, email_client, body),
+    skip(pool, email_client, form),
     fields(
         username = tracing::field::Empty,
         user_id = tracing::field::Empty
@@ -72,28 +66,53 @@ pub async fn publish_newsletter(
     pool: web::Data<sqlx::PgPool>,
     email_client: web::Data<tem::Client>,
     user_id: web::ReqData<UserId>,
-    body: web::Json<BodyData>,
-) -> Result<HttpResponse, PublishError> {
+    form: web::Form<NewsletterData>,
+) -> Result<HttpResponse, InternalError<PublishError>> {
     let user_id = user_id.into_inner();
 
-    let username = get_username(&pool, *user_id).await?;
+    let username_result: Result<String, PublishError> = get_username(&pool, *user_id)
+        .await
+        .map_err(Into::<PublishError>::into);
 
+    let username_result2: Result<String, InternalError<PublishError>> =
+        username_result.map_err(e500);
+
+    let username = username_result2?;
     tracing::Span::current().record("username", &tracing::field::display(&username));
 
-    let subscribers = get_confirmed_subscribers(&pool).await?;
+    // Validate the content
+
+    if form.title.is_empty() {
+        let err = InternalError::new(PublishError::MissingTitle, StatusCode::BAD_REQUEST);
+        return Err(err);
+    }
+
+    if form.text_content.is_empty() || form.html_content.is_empty() {
+        let err = InternalError::new(PublishError::MissingContent, StatusCode::BAD_REQUEST);
+        return Err(err);
+    }
+
+    //
+
+    let subscribers = get_confirmed_subscribers(&pool)
+        .await
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500)?;
+
     for subscriber in subscribers {
         match subscriber {
             Ok(subscriber) => {
                 email_client
                     .send_email(
                         &subscriber.email,
-                        &body.title,
-                        &body.content.html,
-                        &body.content.text,
+                        &form.title,
+                        &form.html_content,
+                        &form.text_content,
                     )
                     .await
-                    .with_context(|| {
-                        format!("Failed to send newsletter issue to {}", subscriber.email)
+                    .map_err(|err| {
+                        let err = PublishError::SendFailure(err, subscriber.email.to_string());
+                        InternalError::new(err, StatusCode::INTERNAL_SERVER_ERROR)
                     })?;
             }
             Err(err) => {
