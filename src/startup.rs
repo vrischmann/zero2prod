@@ -139,10 +139,8 @@ fn run(
                         web::get().to(routes::admin_change_password_form),
                     )
                     .route("/password", web::post().to(routes::admin_change_password))
-                    .route(
-                        "/newsletters",
-                        web::post().to(routes::admin_publish_newsletter),
-                    ),
+                    .route("/newsletters", web::get().to(routes::newsletter_form))
+                    .route("/newsletters", web::post().to(routes::publish_newsletter)),
             )
             .app_data(pool.clone())
             .app_data(email_client.clone())

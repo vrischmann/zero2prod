@@ -3,14 +3,33 @@ use crate::domain::SubscriberEmail;
 use crate::routes::error_chain_fmt;
 use crate::tem;
 use actix_web::http::header;
+use actix_web::http::header::ContentType;
 use actix_web::http::header::{HeaderMap, HeaderValue};
 use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
+use actix_web_flash_messages::IncomingFlashMessages;
 use anyhow::{anyhow, Context};
+use askama::Template;
 use secrecy::Secret;
 use std::fmt;
 use tracing::error;
+
+#[derive(askama::Template)]
+#[template(path = "admin_newsletters.html.j2")]
+pub struct NewsletterTemplate {
+    flash_messages: Option<IncomingFlashMessages>,
+}
+
+pub async fn newsletter_form() -> Result<HttpResponse, actix_web::Error> {
+    let tpl = NewsletterTemplate {
+        flash_messages: None,
+    };
+
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(tpl.render().unwrap()))
+}
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
@@ -64,7 +83,7 @@ pub struct Content {
         user_id = tracing::field::Empty
     )
 )]
-pub async fn admin_publish_newsletter(
+pub async fn publish_newsletter(
     pool: web::Data<sqlx::PgPool>,
     email_client: web::Data<tem::Client>,
     request: HttpRequest,
