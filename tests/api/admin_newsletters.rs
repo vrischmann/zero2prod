@@ -34,7 +34,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
-    assert_eq!(response.status().as_u16(), 200);
+    assert_is_redirect_to(&response, "/admin/newsletters");
 }
 
 #[sqlx::test]
@@ -64,7 +64,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
-    assert_eq!(response.status().as_u16(), 200);
+    assert_is_redirect_to(&response, "/admin/newsletters");
 }
 
 #[sqlx::test]
