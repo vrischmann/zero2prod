@@ -56,6 +56,7 @@ pub struct NewsletterData {
     title: String,
     text_content: String,
     html_content: String,
+    idempotency_key: String,
 }
 
 #[tracing::instrument(
