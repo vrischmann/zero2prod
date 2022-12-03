@@ -25,7 +25,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
     })
     .await;
 
-    //
+    // Send once
 
     let newsletter_request_body = SubmitNewsletterBody {
         title: "Newsletter title".to_string(),
@@ -55,8 +55,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
     })
     .await;
 
-    //
-
+    // Send once
     let newsletter_request_body = SubmitNewsletterBody {
         title: "Newsletter title".to_string(),
         text_content: "Newsletter body as plain text".to_string(),
@@ -65,6 +64,10 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
     assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // Reload the page
+    let html_page = app.get_admin_newsletters_html().await;
+    assert!(html_page.contains(r#"The newsletter issue has been published"#));
 }
 
 #[sqlx::test]
