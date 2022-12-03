@@ -4,7 +4,7 @@ use crate::helpers::{LoginBody, SubmitNewsletterBody, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
-use wiremock::matchers::{any, method, path};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
 #[sqlx::test]
@@ -13,7 +13,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
 
     create_unconfirmed_subscriber(&app).await;
 
-    Mock::given(any())
+    Mock::given(path("/emails"))
         .respond_with(ResponseTemplate::new(200))
         .expect(0)
         .mount(&app.email_server)
@@ -43,7 +43,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
 
     create_confirmed_subscriber(&app).await;
 
-    Mock::given(any())
+    Mock::given(path("/emails"))
         .respond_with(ResponseTemplate::new(200))
         .expect(1)
         .mount(&app.email_server)
@@ -73,7 +73,7 @@ async fn failed_sending_sets_a_flash_message(pool: sqlx::PgPool) {
 
     create_confirmed_subscriber(&app).await;
 
-    Mock::given(any())
+    Mock::given(path("/emails"))
         .respond_with(ResponseTemplate::new(401))
         .expect(1)
         .mount(&app.email_server)
