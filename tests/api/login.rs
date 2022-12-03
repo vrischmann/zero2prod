@@ -15,7 +15,7 @@ async fn an_error_flash_message_is_set_on_failure() {
 
     assert_is_redirect_to(&response, "/login");
 
-    const EXPECTED_HTML: &str = r#"<p class="flash flash-error"><i>Authentication failed</i></p>"#;
+    const EXPECTED_HTML: &str = r#"Authentication failed"#;
 
     // 2) reload the page to check that the handlers prints the flash message
     let html_page = app.get_login_html().await;
