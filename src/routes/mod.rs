@@ -38,6 +38,13 @@ where
     actix_web::error::InternalError::new(err, StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+pub fn e400<T>(err: T) -> actix_web::error::InternalError<T>
+where
+    T: fmt::Debug + fmt::Display + 'static,
+{
+    actix_web::error::InternalError::new(err, StatusCode::BAD_REQUEST)
+}
+
 pub fn see_other(location: &str) -> HttpResponse {
     HttpResponse::SeeOther()
         .insert_header((LOCATION, location))
