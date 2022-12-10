@@ -1,6 +1,7 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
-use crate::routes::{e500, error_chain_fmt, get_username, see_other};
+use crate::idempotency::IdempotencyKey;
+use crate::routes::{e400, e500, error_chain_fmt, get_username, see_other};
 use crate::tem;
 use actix_web::error::InternalError;
 use actix_web::http::header::ContentType;
@@ -75,6 +76,14 @@ pub async fn publish_newsletter(
 ) -> Result<HttpResponse, InternalError<PublishError>> {
     let user_id = user_id.into_inner();
 
+    // Need to destructure to make the borrow-checker happy
+    let NewsletterData {
+        title,
+        text_content,
+        html_content,
+        idempotency_key,
+    } = form.0;
+
     let username_result = get_username(&pool, *user_id)
         .await
         .map_err(Into::<PublishError>::into)
@@ -85,15 +94,22 @@ pub async fn publish_newsletter(
 
     // Validate the content
 
-    if form.title.is_empty() {
+    if title.is_empty() {
         let err = InternalError::new(PublishError::MissingTitle, StatusCode::BAD_REQUEST);
         return Err(err);
     }
 
-    if form.text_content.is_empty() || form.html_content.is_empty() {
+    if text_content.is_empty() || html_content.is_empty() {
         let err = InternalError::new(PublishError::MissingContent, StatusCode::BAD_REQUEST);
         return Err(err);
     }
+
+    //
+
+    let idempotency_key: IdempotencyKey = idempotency_key
+        .try_into()
+        .map_err(Into::<PublishError>::into)
+        .map_err(e400)?;
 
     //
 
@@ -106,12 +122,7 @@ pub async fn publish_newsletter(
         match subscriber {
             Ok(subscriber) => {
                 let send_result = email_client
-                    .send_email(
-                        &subscriber.email,
-                        &form.title,
-                        &form.html_content,
-                        &form.text_content,
-                    )
+                    .send_email(&subscriber.email, &title, &html_content, &text_content)
                     .await;
 
                 if send_result.is_err() {
