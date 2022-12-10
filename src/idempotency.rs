@@ -1,3 +1,4 @@
+use actix_web::body;
 use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use anyhow::anyhow;
@@ -37,18 +38,24 @@ impl AsRef<str> for IdempotencyKey {
     }
 }
 
+#[derive(Debug, sqlx::Type)]
+#[sqlx(type_name = "header_pair")]
+struct HeaderPairRecord {
+    name: String,
+    value: Vec<u8>,
+}
+
+impl sqlx::postgres::PgHasArrayType for HeaderPairRecord {
+    fn array_type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("_header_pair")
+    }
+}
+
 pub async fn get_saved_response(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     idempotency_key: &IdempotencyKey,
 ) -> Result<Option<HttpResponse>, anyhow::Error> {
-    #[derive(Debug, sqlx::Type)]
-    #[sqlx(type_name = "header_pair")]
-    struct HeaderPairRecord {
-        name: String,
-        value: Vec<u8>,
-    }
-
     let saved_response = sqlx::query!(
         r#"
             SELECT
@@ -81,4 +88,55 @@ pub async fn get_saved_response(
     } else {
         Ok(None)
     }
+}
+
+pub async fn save_response(
+    pool: &sqlx::PgPool,
+    user_id: Uuid,
+    idempotency_key: &IdempotencyKey,
+    http_response: HttpResponse,
+) -> Result<HttpResponse, anyhow::Error> {
+    let (response_head, body) = http_response.into_parts();
+
+    let body = body::to_bytes(body).await.map_err(|e| anyhow!("{}", e))?;
+    let status_code = response_head.status().as_u16() as i16;
+
+    let headers = {
+        let mut v = Vec::with_capacity(response_head.headers().len());
+        for (name, value) in response_head.headers().iter() {
+            let name = name.as_str().to_owned();
+            let value = value.as_bytes().to_owned();
+
+            v.push(HeaderPairRecord { name, value });
+        }
+
+        v
+    };
+
+    sqlx::query_unchecked!(
+        r#"
+        INSERT INTO idempotency(
+            user_id,
+            idempotency_key,
+            response_status_code,
+            response_headers,
+            response_body,
+            created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, now())
+        "#,
+        user_id,
+        idempotency_key.as_ref(),
+        status_code,
+        headers,
+        body.as_ref(),
+    )
+    .execute(pool)
+    .await?;
+
+    //
+
+    let new_http_response = response_head.set_body(body).map_into_boxed_body();
+
+    Ok(new_http_response)
 }
