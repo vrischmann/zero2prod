@@ -20,6 +20,7 @@ use uuid::Uuid;
 pub struct NewsletterTemplate {
     user_id: Option<Uuid>,
     flash_messages: Option<IncomingFlashMessages>,
+    idempotency_key: String,
 }
 
 pub async fn newsletter_form(
@@ -29,6 +30,7 @@ pub async fn newsletter_form(
     let tpl = NewsletterTemplate {
         user_id: Some(*user_id.into_inner()),
         flash_messages: Some(flash_messages),
+        idempotency_key: Uuid::new_v4().to_string(),
     };
 
     Ok(HttpResponse::Ok()
