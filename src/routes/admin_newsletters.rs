@@ -1,6 +1,7 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
 use crate::idempotency::IdempotencyKey;
+use crate::idempotency::{get_saved_response, save_response};
 use crate::routes::{e400, e500, error_chain_fmt, get_username, see_other};
 use crate::tem;
 use actix_web::error::InternalError;
@@ -86,6 +87,23 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = form.0;
 
+    // Handle idempotency key if necessary
+
+    let idempotency_key: IdempotencyKey = idempotency_key
+        .try_into()
+        .map_err(Into::<PublishError>::into)
+        .map_err(e400)?;
+
+    let saved_response = get_saved_response(&pool, *user_id, &idempotency_key)
+        .await
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500)?;
+    if let Some(saved_response) = saved_response {
+        return Ok(saved_response);
+    }
+
+    //
+
     let username_result = get_username(&pool, *user_id)
         .await
         .map_err(Into::<PublishError>::into)
@@ -105,13 +123,6 @@ pub async fn publish_newsletter(
         let err = InternalError::new(PublishError::MissingContent, StatusCode::BAD_REQUEST);
         return Err(err);
     }
-
-    //
-
-    let idempotency_key: IdempotencyKey = idempotency_key
-        .try_into()
-        .map_err(Into::<PublishError>::into)
-        .map_err(e400)?;
 
     //
 
@@ -146,7 +157,14 @@ pub async fn publish_newsletter(
     }
 
     FlashMessage::info("The newsletter issue has been published").send();
-    Ok(see_other("/admin/newsletters"))
+
+    let response = see_other("/admin/newsletters");
+    let response = save_response(&pool, *user_id, &idempotency_key, response)
+        .await
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500)?;
+
+    Ok(response)
 }
 
 struct ConfirmedSubscriber {
