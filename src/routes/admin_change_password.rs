@@ -69,7 +69,7 @@ pub async fn admin_change_password(
         return Ok(see_other("/admin/password"));
     }
     let new_password_len = form.new_password.expose_secret().len();
-    if new_password_len < 12 {
+    if new_password_len < 4 {
         FlashMessage::error("New password is too short").send();
         return Ok(see_other("/admin/password"));
     }
