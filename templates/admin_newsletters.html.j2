@@ -13,6 +13,8 @@
     <label for="html_content">HTML content</label>
     <textarea name="html_content" id="html_content" cols="30" rows="10"></textarea>
 
+    <input hidden type="text" name="idempotency_key" value="{{ idempotency_key }}">
+
     <button type="submit">Send</button>
 </form>
 

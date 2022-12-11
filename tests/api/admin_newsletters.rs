@@ -4,6 +4,8 @@ use crate::helpers::{LoginBody, SubmitNewsletterBody, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
+use std::time::Duration;
+use uuid::Uuid;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -26,11 +28,11 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers(pool: sqlx::Pg
     .await;
 
     // Send once
-
     let newsletter_request_body = SubmitNewsletterBody {
         title: "Newsletter title".to_string(),
         text_content: "Newsletter body as plain text".to_string(),
         html_content: "<p>Newsletter body as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
@@ -60,6 +62,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers(pool: sqlx::PgPool) 
         title: "Newsletter title".to_string(),
         text_content: "Newsletter body as plain text".to_string(),
         html_content: "<p>Newsletter body as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
@@ -93,6 +96,7 @@ async fn failed_sending_sets_a_flash_message(pool: sqlx::PgPool) {
         title: "Newsletter title".to_string(),
         text_content: "Newsletter body as plain text".to_string(),
         html_content: "<p>Newsletter body as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
     };
 
     let response = app.post_admin_newsletters(&newsletter_request_body).await;
@@ -121,6 +125,7 @@ async fn newsletters_returns_400_for_invalid_data() {
                 title: "".to_string(),
                 text_content: "Text".to_string(),
                 html_content: "HTML".to_string(),
+                idempotency_key: Uuid::new_v4(),
             },
             "missing title",
         ),
@@ -129,6 +134,7 @@ async fn newsletters_returns_400_for_invalid_data() {
                 title: "My title".to_string(),
                 text_content: "".to_string(),
                 html_content: "".to_string(),
+                idempotency_key: Uuid::new_v4(),
             },
             "missing content",
         ),
@@ -146,6 +152,94 @@ async fn newsletters_returns_400_for_invalid_data() {
             case,
         )
     }
+}
+
+#[sqlx::test]
+async fn newsletter_creation_is_idempotent(pool: sqlx::PgPool) {
+    let app = spawn_app_with_pool(pool).await;
+
+    create_confirmed_subscriber(&app).await;
+
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    //
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .named("Create unconfirmed subscriber")
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // 1) Send once
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter bo as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
+    };
+
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
+    assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // 2) Reload the page
+    let html_page = app.get_admin_newsletters_html().await;
+    assert!(html_page.contains(r#"The newsletter issue has been published"#));
+
+    // 3) Send again
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
+    assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // 4) Reload the page _again_
+    let html_page = app.get_admin_newsletters_html().await;
+    assert!(html_page.contains(r#"The newsletter issue has been published"#));
+
+    // Mock verifies on drop that we have sent the newsletter email _once_
+}
+
+#[tokio::test]
+async fn newsletter_creation_concurrent_form_submission_is_handled_gracefully() {
+    let app = spawn_app().await;
+
+    create_confirmed_subscriber(&app).await;
+
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    //
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(2)))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // 1) Send once
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter bo as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
+    };
+
+    let (response1, response2) = tokio::join!(
+        app.post_admin_newsletters(&newsletter_request_body),
+        app.post_admin_newsletters(&newsletter_request_body),
+    );
+
+    assert_is_redirect_to(&response1, "/admin/newsletters");
+    assert_is_redirect_to(&response2, "/admin/newsletters");
+
+    // Mock verifies on drop that we have sent the newsletter email _once_
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {

@@ -1,6 +1,8 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
-use crate::routes::{e500, error_chain_fmt, get_username, see_other};
+use crate::idempotency::IdempotencyKey;
+use crate::idempotency::{get_saved_response, save_response};
+use crate::routes::{e400, e500, error_chain_fmt, get_username, see_other};
 use crate::tem;
 use actix_web::error::InternalError;
 use actix_web::http::header::ContentType;
@@ -19,6 +21,7 @@ use uuid::Uuid;
 pub struct NewsletterTemplate {
     user_id: Option<Uuid>,
     flash_messages: Option<IncomingFlashMessages>,
+    idempotency_key: String,
 }
 
 pub async fn newsletter_form(
@@ -28,6 +31,7 @@ pub async fn newsletter_form(
     let tpl = NewsletterTemplate {
         user_id: Some(*user_id.into_inner()),
         flash_messages: Some(flash_messages),
+        idempotency_key: Uuid::new_v4().to_string(),
     };
 
     Ok(HttpResponse::Ok()
@@ -56,6 +60,7 @@ pub struct NewsletterData {
     title: String,
     text_content: String,
     html_content: String,
+    idempotency_key: String,
 }
 
 #[tracing::instrument(
@@ -74,6 +79,32 @@ pub async fn publish_newsletter(
 ) -> Result<HttpResponse, InternalError<PublishError>> {
     let user_id = user_id.into_inner();
 
+    // Need to destructure to make the borrow-checker happy
+    let NewsletterData {
+        title,
+        text_content,
+        html_content,
+        idempotency_key,
+    } = form.0;
+
+    // Handle idempotency key if necessary
+
+    let idempotency_key: IdempotencyKey = idempotency_key
+        .try_into()
+        .map_err(Into::<PublishError>::into)
+        .map_err(e400)?;
+
+    let saved_response = get_saved_response(&pool, *user_id, &idempotency_key)
+        .await
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500)?;
+    if let Some(saved_response) = saved_response {
+        FlashMessage::info("The newsletter issue has been published").send();
+        return Ok(saved_response);
+    }
+
+    //
+
     let username_result = get_username(&pool, *user_id)
         .await
         .map_err(Into::<PublishError>::into)
@@ -84,12 +115,12 @@ pub async fn publish_newsletter(
 
     // Validate the content
 
-    if form.title.is_empty() {
+    if title.is_empty() {
         let err = InternalError::new(PublishError::MissingTitle, StatusCode::BAD_REQUEST);
         return Err(err);
     }
 
-    if form.text_content.is_empty() || form.html_content.is_empty() {
+    if text_content.is_empty() || html_content.is_empty() {
         let err = InternalError::new(PublishError::MissingContent, StatusCode::BAD_REQUEST);
         return Err(err);
     }
@@ -105,12 +136,7 @@ pub async fn publish_newsletter(
         match subscriber {
             Ok(subscriber) => {
                 let send_result = email_client
-                    .send_email(
-                        &subscriber.email,
-                        &form.title,
-                        &form.html_content,
-                        &form.text_content,
-                    )
+                    .send_email(&subscriber.email, &title, &html_content, &text_content)
                     .await;
 
                 if send_result.is_err() {
@@ -131,8 +157,15 @@ pub async fn publish_newsletter(
         }
     }
 
+    let response = see_other("/admin/newsletters");
+    let response = save_response(&pool, *user_id, &idempotency_key, response)
+        .await
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500)?;
+
     FlashMessage::info("The newsletter issue has been published").send();
-    Ok(see_other("/admin/newsletters"))
+
+    Ok(response)
 }
 
 struct ConfirmedSubscriber {
