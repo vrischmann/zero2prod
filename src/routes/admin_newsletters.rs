@@ -2,7 +2,7 @@ use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
 use crate::idempotency::{save_response, try_processing};
 use crate::idempotency::{IdempotencyKey, NextAction};
-use crate::routes::{e400, e500, error_chain_fmt, get_username, see_other};
+use crate::routes::{e400, e500, error_chain_fmt, see_other};
 use crate::tem;
 use actix_web::error::InternalError;
 use actix_web::http::header::ContentType;
