@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-set -l _version "0.1.0"
+set -l _version "1.0.0"
 
 # Aborts the installer and displays an error.
 function abort -a message
