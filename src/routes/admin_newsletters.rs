@@ -188,3 +188,28 @@ async fn get_confirmed_subscribers(
 
     Ok(result)
 }
+
+#[tracing::instrument(skip_all)]
+async fn insert_newsletter_issue(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    title: &str,
+    text_content: &str,
+    html_content: &str,
+) -> Result<Uuid, sqlx::Error> {
+    let id = Uuid::new_v4();
+
+    sqlx::query!(
+        r#"
+        INSERT INTO newsletter_issues(id, title, text_content, html_content, published_at)
+        VALUES ($1, $2, $3, $4, now())
+        "#,
+        id,
+        title,
+        text_content,
+        html_content,
+    )
+    .execute(transaction)
+    .await?;
+
+    Ok(id)
+}
