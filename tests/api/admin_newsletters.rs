@@ -4,6 +4,7 @@ use crate::helpers::{LoginBody, SubmitNewsletterBody, SubscriptionBody};
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
+use std::time::Duration;
 use uuid::Uuid;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
@@ -197,6 +198,46 @@ async fn newsletter_creation_is_idempotent(pool: sqlx::PgPool) {
     // 4) Reload the page _again_
     let html_page = app.get_admin_newsletters_html().await;
     assert!(html_page.contains(r#"The newsletter issue has been published"#));
+
+    // Mock verifies on drop that we have sent the newsletter email _once_
+}
+
+#[tokio::test]
+async fn newsletter_creation_concurrent_form_submission_is_handled_gracefully() {
+    let app = spawn_app().await;
+
+    create_confirmed_subscriber(&app).await;
+
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    //
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(2)))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // 1) Send once
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter bo as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
+    };
+
+    let (response1, response2) = tokio::join!(
+        app.post_admin_newsletters(&newsletter_request_body),
+        app.post_admin_newsletters(&newsletter_request_body),
+    );
+
+    assert_is_redirect_to(&response1, "/admin/newsletters");
+    assert_is_redirect_to(&response2, "/admin/newsletters");
 
     // Mock verifies on drop that we have sent the newsletter email _once_
 }
