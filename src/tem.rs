@@ -1,5 +1,6 @@
 use crate::domain::SubscriberEmail;
 use secrecy::{ExposeSecret, Secret};
+use serde_json::json;
 use std::time::Duration;
 use tracing::{event, Level};
 
@@ -80,6 +81,12 @@ impl Client {
             text: text_content.to_string(),
             html: html_content.to_string(),
         };
+
+        event!(
+            Level::DEBUG,
+            request_body = json!(body).to_string(),
+            "sending email"
+        );
 
         let response = self
             .http_client
