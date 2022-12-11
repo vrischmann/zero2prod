@@ -100,13 +100,13 @@ pub async fn publish_newsletter(
         .await
         .map_err(Into::<PublishError>::into)
         .map_err(e500)?;
-    match next_action {
-        NextAction::StartProcessing => {}
+    let transaction = match next_action {
+        NextAction::StartProcessing(transaction) => transaction,
         NextAction::ReturnSavedResponse(response) => {
             FlashMessage::info(SUCCESS_MESSAGE).send();
             return Ok(response);
         }
-    }
+    };
 
     // 2) Get the username for this user
 
@@ -165,7 +165,7 @@ pub async fn publish_newsletter(
     // 5) Finally produce the response and save it to the database
 
     let response = see_other("/admin/newsletters");
-    let response = save_response(&pool, *user_id, &idempotency_key, response)
+    let response = save_response(transaction, *user_id, &idempotency_key, response)
         .await
         .map_err(Into::<PublishError>::into)
         .map_err(e500)?;
