@@ -10,7 +10,7 @@ use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use askama::Template;
 use std::fmt;
 use tracing::error;
@@ -99,7 +99,7 @@ pub async fn publish_newsletter(
         .await
         .map_err(Into::<PublishError>::into)
         .map_err(e500)?;
-    let transaction = match next_action {
+    let mut transaction = match next_action {
         NextAction::StartProcessing(transaction) => transaction,
         NextAction::ReturnSavedResponse(response) => {
             FlashMessage::info(SUCCESS_MESSAGE).send();
@@ -119,37 +119,19 @@ pub async fn publish_newsletter(
         return Err(err);
     }
 
-    // 3) Get all confirmed subscribers and send the newsletter
+    // 3) Insert newsletter issue and enqueue delivery tasks
 
-    let subscribers = get_confirmed_subscribers(&pool)
+    let issue_id = insert_newsletter_issue(&mut transaction, &title, &text_content, &html_content)
         .await
+        .context("Failed to store newsletter issue details")
         .map_err(Into::<PublishError>::into)
         .map_err(e500)?;
 
-    for subscriber in subscribers {
-        match subscriber {
-            Ok(subscriber) => {
-                let send_result = email_client
-                    .send_email(&subscriber.email, &title, &html_content, &text_content)
-                    .await;
-
-                if send_result.is_err() {
-                    FlashMessage::error(&format!(
-                        "Unable to send newsletter to subscriber {}",
-                        &subscriber.email
-                    ))
-                    .send();
-                    return Ok(see_other("/admin/newsletters"));
-                }
-            }
-            Err(err) => {
-                error!(
-                    error.cause_chain = ?err,
-                    "Skipping a confirmed subscriber, their stored contact details are invalid",
-                )
-            }
-        }
-    }
+    enqueue_delivery_tasks(&mut transaction, issue_id)
+        .await
+        .context("Failed to enqueue delivery tasks")
+        .map_err(Into::<PublishError>::into)
+        .map_err(e500)?;
 
     // 4) Finally produce the response and save it to the database
 
@@ -162,31 +144,6 @@ pub async fn publish_newsletter(
     FlashMessage::info(SUCCESS_MESSAGE).send();
 
     Ok(response)
-}
-
-struct ConfirmedSubscriber {
-    email: SubscriberEmail,
-}
-
-#[tracing::instrument(name = "Get confirmed subscriber", skip(pool))]
-async fn get_confirmed_subscribers(
-    pool: &sqlx::PgPool,
-) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    let result = sqlx::query!(
-        r#"
-        SELECT email FROM subscriptions WHERE status = 'confirmed'
-        "#,
-    )
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|r| match SubscriberEmail::parse(r.email) {
-        Ok(email) => Ok(ConfirmedSubscriber { email }),
-        Err(err) => Err(anyhow!(err)),
-    })
-    .collect();
-
-    Ok(result)
 }
 
 #[tracing::instrument(skip_all)]
