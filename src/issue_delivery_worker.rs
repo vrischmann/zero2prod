@@ -11,6 +11,7 @@ pub enum ExecutionOutcome {
 
 #[tracing::instrument(
     skip_all,
+    level = "debug",
     fields(
         newsletter_issue_id = tracing::field::Empty,
         subscriber_email = tracing::field::Empty,
@@ -64,7 +65,7 @@ pub async fn try_execute_task(
 
 type PgTransaction = sqlx::Transaction<'static, sqlx::Postgres>;
 
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, level = "debug")]
 async fn dequeue_task(
     pool: &sqlx::PgPool,
 ) -> Result<Option<(PgTransaction, Uuid, String)>, anyhow::Error> {
