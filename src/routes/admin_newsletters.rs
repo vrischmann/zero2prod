@@ -1,7 +1,7 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
-use crate::idempotency::IdempotencyKey;
-use crate::idempotency::{get_saved_response, save_response};
+use crate::idempotency::{save_response, try_processing};
+use crate::idempotency::{IdempotencyKey, NextAction};
 use crate::routes::{e400, e500, error_chain_fmt, get_username, see_other};
 use crate::tem;
 use actix_web::error::InternalError;
@@ -55,6 +55,8 @@ impl fmt::Debug for PublishError {
     }
 }
 
+const SUCCESS_MESSAGE: &str = "The newsletter issue has been published";
+
 #[derive(serde::Deserialize)]
 pub struct NewsletterData {
     title: String,
@@ -87,23 +89,26 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = form.0;
 
-    // Handle idempotency key if necessary
+    // 1) Handle idempotency key if necessary
 
     let idempotency_key: IdempotencyKey = idempotency_key
         .try_into()
         .map_err(Into::<PublishError>::into)
         .map_err(e400)?;
 
-    let saved_response = get_saved_response(&pool, *user_id, &idempotency_key)
+    let next_action = try_processing(&pool, *user_id, &idempotency_key)
         .await
         .map_err(Into::<PublishError>::into)
         .map_err(e500)?;
-    if let Some(saved_response) = saved_response {
-        FlashMessage::info("The newsletter issue has been published").send();
-        return Ok(saved_response);
+    match next_action {
+        NextAction::StartProcessing => {}
+        NextAction::ReturnSavedResponse(response) => {
+            FlashMessage::info(SUCCESS_MESSAGE).send();
+            return Ok(response);
+        }
     }
 
-    //
+    // 2) Get the username for this user
 
     let username_result = get_username(&pool, *user_id)
         .await
@@ -113,7 +118,7 @@ pub async fn publish_newsletter(
     let username = username_result?;
     tracing::Span::current().record("username", &tracing::field::display(&username));
 
-    // Validate the content
+    // 3) Validate the content
 
     if title.is_empty() {
         let err = InternalError::new(PublishError::MissingTitle, StatusCode::BAD_REQUEST);
@@ -125,7 +130,7 @@ pub async fn publish_newsletter(
         return Err(err);
     }
 
-    //
+    // 4) Get all confirmed subscribers and send the newsletter
 
     let subscribers = get_confirmed_subscribers(&pool)
         .await
@@ -157,13 +162,15 @@ pub async fn publish_newsletter(
         }
     }
 
+    // 5) Finally produce the response and save it to the database
+
     let response = see_other("/admin/newsletters");
     let response = save_response(&pool, *user_id, &idempotency_key, response)
         .await
         .map_err(Into::<PublishError>::into)
         .map_err(e500)?;
 
-    FlashMessage::info("The newsletter issue has been published").send();
+    FlashMessage::info(SUCCESS_MESSAGE).send();
 
     Ok(response)
 }

@@ -51,7 +51,7 @@ impl sqlx::postgres::PgHasArrayType for HeaderPairRecord {
     }
 }
 
-pub async fn get_saved_response(
+async fn get_saved_response(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     idempotency_key: &IdempotencyKey,
@@ -115,21 +115,15 @@ pub async fn save_response(
 
     sqlx::query_unchecked!(
         r#"
-        INSERT INTO idempotency(
-            user_id,
-            idempotency_key,
-            response_status_code,
-            response_headers,
-            response_body,
-            created_at
-        )
-        VALUES ($1, $2, $3, $4, $5, now())
+        UPDATE idempotency
+        SET response_status_code = $1, response_headers = $2, response_body = $3
+        WHERE user_id = $4 AND idempotency_key = $5
         "#,
-        user_id,
-        idempotency_key.as_ref(),
         status_code,
         headers,
         body.as_ref(),
+        user_id,
+        idempotency_key.as_ref(),
     )
     .execute(pool)
     .await?;
@@ -139,4 +133,38 @@ pub async fn save_response(
     let new_http_response = response_head.set_body(body).map_into_boxed_body();
 
     Ok(new_http_response)
+}
+
+pub enum NextAction {
+    StartProcessing,
+    ReturnSavedResponse(HttpResponse),
+}
+
+pub async fn try_processing(
+    pool: &sqlx::PgPool,
+    user_id: Uuid,
+    idempotency_key: &IdempotencyKey,
+) -> Result<NextAction, anyhow::Error> {
+    let n_inserted_rows = sqlx::query!(
+        r#"
+        INSERT INTO idempotency(user_id, idempotency_key, created_at)
+        VALUES($1, $2, now())
+        ON CONFLICT DO NOTHING
+        "#,
+        user_id,
+        idempotency_key.as_ref(),
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
+
+    if n_inserted_rows > 0 {
+        Ok(NextAction::StartProcessing)
+    } else {
+        let saved_response = get_saved_response(pool, user_id, idempotency_key).await?;
+        match saved_response {
+            Some(response) => Ok(NextAction::ReturnSavedResponse(response)),
+            None => Err(anyhow!("We expected a saved response but didn't find it")),
+        }
+    }
 }
