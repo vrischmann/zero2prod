@@ -1,7 +1,7 @@
 use crate::domain::SubscriberEmail;
 use secrecy::{ExposeSecret, Secret};
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSetttings,
@@ -9,7 +9,7 @@ pub struct Settings {
     pub session: SessionSettings,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 pub struct ApplicationSetttings {
     pub host: String,
     pub port: u16,
@@ -17,7 +17,7 @@ pub struct ApplicationSetttings {
     pub hmac_secret: Secret<String>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: Secret<String>,
@@ -39,7 +39,7 @@ impl DatabaseSettings {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 pub struct SessionSettings {
     pub cleanup_enabled: bool,
     pub cleanup_interval_milliseconds: i64,
@@ -55,7 +55,7 @@ impl SessionSettings {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 pub struct TEMSettings {
     pub base_url: String,
     pub auth_key: Secret<String>,
