@@ -2,6 +2,7 @@ pub mod authentication;
 pub mod configuration;
 pub mod domain;
 pub mod idempotency;
+pub mod issue_delivery_worker;
 mod routes;
 pub mod sessions;
 pub mod startup;

@@ -1,13 +1,15 @@
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
 use once_cell::sync::Lazy;
-use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use uuid::Uuid;
 use wiremock::MockServer;
 use zero2prod::configuration::get_configuration;
+use zero2prod::issue_delivery_worker::{try_execute_task, ExecutionOutcome};
 use zero2prod::startup::Application;
+use zero2prod::startup::{get_connection_pool, get_tem_client};
 use zero2prod::telemetry;
+use zero2prod::tem;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     let default_filter_level = "info".into();
@@ -37,6 +39,7 @@ pub struct TestApp {
     pub pool: PgPool,
 
     pub email_server: MockServer,
+    pub email_client: tem::Client,
     pub http_client: reqwest::Client,
 
     pub test_user: TestUser,
@@ -177,17 +180,23 @@ impl TestApp {
             text: text_link,
         }
     }
+
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            let result = try_execute_task(&self.pool, &self.email_client)
+                .await
+                .unwrap();
+            if let ExecutionOutcome::EmptyQueue = result {
+                break;
+            }
+        }
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
     let configuration = get_configuration().expect("Failed to read configuration");
 
-    let pool = sqlx::pool::PoolOptions::default()
-        .max_connections(1024)
-        .acquire_timeout(std::time::Duration::from_secs(1))
-        .connect(configuration.database.connection_string().expose_secret())
-        .await
-        .expect("Failed to build postgresql pool");
+    let pool = get_connection_pool(&configuration.database).await;
 
     spawn_app_with_pool(pool).await
 }
@@ -203,14 +212,18 @@ pub async fn spawn_app_with_pool(pool: sqlx::PgPool) -> TestApp {
     configuration.application.port = 0;
     configuration.tem.base_url = email_server.uri();
 
-    //
+    // Build the stuff needed for the test harness
+    let test_app_pool = pool.clone();
+    let test_app_email_client = get_tem_client(&configuration.tem);
 
-    let app = Application::build_with_pool(configuration, pool)
+    // Build the application
+    let app_pool = pool.clone();
+    let app_email_client = get_tem_client(&configuration.tem);
+
+    let app = Application::build_with_pool(configuration, app_pool, app_email_client)
         .await
         .expect("Failed to build application");
     let app_port = app.port;
-
-    let pool = app.pool.clone();
 
     let _ = tokio::spawn(app.run_until_stopped());
 
@@ -225,8 +238,9 @@ pub async fn spawn_app_with_pool(pool: sqlx::PgPool) -> TestApp {
     let test_app = TestApp {
         address: format!("http://127.0.0.1:{}", app_port),
         port: app_port,
-        pool,
+        pool: test_app_pool,
         email_server,
+        email_client: test_app_email_client,
         http_client,
         test_user: TestUser::generate(),
     };
