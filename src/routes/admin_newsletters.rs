@@ -69,7 +69,6 @@ pub struct NewsletterData {
     name = "Publish newsletter",
     skip(pool, email_client, form),
     fields(
-        username = tracing::field::Empty,
         user_id = tracing::field::Empty
     )
 )]
@@ -108,17 +107,7 @@ pub async fn publish_newsletter(
         }
     };
 
-    // 2) Get the username for this user
-
-    let username_result = get_username(&pool, *user_id)
-        .await
-        .map_err(Into::<PublishError>::into)
-        .map_err(e500);
-
-    let username = username_result?;
-    tracing::Span::current().record("username", &tracing::field::display(&username));
-
-    // 3) Validate the content
+    // 2) Validate the content
 
     if title.is_empty() {
         let err = InternalError::new(PublishError::MissingTitle, StatusCode::BAD_REQUEST);
@@ -130,7 +119,7 @@ pub async fn publish_newsletter(
         return Err(err);
     }
 
-    // 4) Get all confirmed subscribers and send the newsletter
+    // 3) Get all confirmed subscribers and send the newsletter
 
     let subscribers = get_confirmed_subscribers(&pool)
         .await
@@ -162,7 +151,7 @@ pub async fn publish_newsletter(
         }
     }
 
-    // 5) Finally produce the response and save it to the database
+    // 4) Finally produce the response and save it to the database
 
     let response = see_other("/admin/newsletters");
     let response = save_response(transaction, *user_id, &idempotency_key, response)
