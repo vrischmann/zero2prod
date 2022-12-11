@@ -1,11 +1,11 @@
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
 use once_cell::sync::Lazy;
-use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use uuid::Uuid;
 use wiremock::MockServer;
 use zero2prod::configuration::get_configuration;
+use zero2prod::issue_delivery_worker::{try_execute_task, ExecutionOutcome};
 use zero2prod::startup::Application;
 use zero2prod::startup::{get_connection_pool, get_tem_client};
 use zero2prod::telemetry;
@@ -178,6 +178,17 @@ impl TestApp {
         ConfirmationLinks {
             html: html_link,
             text: text_link,
+        }
+    }
+
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            let result = try_execute_task(&self.pool, &self.email_client)
+                .await
+                .unwrap();
+            if let ExecutionOutcome::EmptyQueue = result {
+                break;
+            }
         }
     }
 }
