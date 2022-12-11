@@ -1,16 +1,14 @@
 use crate::authentication::UserId;
-use crate::domain::SubscriberEmail;
 use crate::idempotency::{save_response, try_processing};
 use crate::idempotency::{IdempotencyKey, NextAction};
 use crate::routes::{e400, e500, error_chain_fmt, see_other};
-use crate::tem;
 use actix_web::error::InternalError;
 use actix_web::http::header::ContentType;
 use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use askama::Template;
 use std::fmt;
 use tracing::error;
@@ -65,16 +63,9 @@ pub struct NewsletterData {
     idempotency_key: String,
 }
 
-#[tracing::instrument(
-    name = "Publish newsletter",
-    skip(pool, email_client, form),
-    fields(
-        user_id = tracing::field::Empty
-    )
-)]
+#[tracing::instrument(name = "Publish newsletter", skip(pool, form))]
 pub async fn publish_newsletter(
     pool: web::Data<sqlx::PgPool>,
-    email_client: web::Data<tem::Client>,
     user_id: web::ReqData<UserId>,
     form: web::Form<NewsletterData>,
 ) -> Result<HttpResponse, InternalError<PublishError>> {
