@@ -242,6 +242,67 @@ async fn newsletter_creation_concurrent_form_submission_is_handled_gracefully() 
     // Mock verifies on drop that we have sent the newsletter email _once_
 }
 
+#[sqlx::test]
+async fn transient_errors_do_not_cause_duplicate_deliveries_on_retries(pool: sqlx::PgPool) {
+    let app = spawn_app_with_pool(pool).await;
+
+    create_confirmed_subscriber(&app).await;
+    create_confirmed_subscriber(&app).await;
+
+    app.post_login(&LoginBody {
+        username: app.test_user.username.clone(),
+        password: app.test_user.password.clone(),
+    })
+    .await;
+
+    // 1) Publish the newsletter once
+    //
+    // Delivery for the first subscriber works
+    // Delivery for the second subscriber fails
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let newsletter_request_body = SubmitNewsletterBody {
+        title: "Newsletter title".to_string(),
+        text_content: "Newsletter body as plain text".to_string(),
+        html_content: "<p>Newsletter bo as HTML</p>".to_string(),
+        idempotency_key: Uuid::new_v4(),
+    };
+
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
+    assert_eq!(response.status().as_u16(), 500);
+
+    // 2) Resubmit the form
+    //
+    // Delivery will succeed for both subscribers now
+
+    Mock::given(path("/emails"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .named("Delivery retry")
+        .mount(&app.email_server)
+        .await;
+
+    let response = app.post_admin_newsletters(&newsletter_request_body).await;
+    assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // Mock verifies on drop that we have sent the newsletter email _once_
+}
+
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
     let body = SubscriptionBody {
         name: Name().fake(),
