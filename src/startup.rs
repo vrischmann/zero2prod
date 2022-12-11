@@ -1,5 +1,5 @@
 use crate::authentication::reject_anonymous_users;
-use crate::configuration::Settings;
+use crate::configuration::{DatabaseSettings, Settings, TEMSettings};
 use crate::routes;
 use crate::sessions::{CleanupConfig, PgSessionStore};
 use crate::tem;
@@ -29,31 +29,35 @@ pub struct Application {
     server: Server,
 }
 
+pub async fn get_connection_pool(configuration: &DatabaseSettings) -> sqlx::PgPool {
+    PgPoolOptions::new()
+        .max_connections(1024)
+        .acquire_timeout(Duration::from_secs(1))
+        .connect(configuration.connection_string().expose_secret())
+        .await
+        .expect("Failed to connect to PostgreSQL")
+}
+
+pub fn get_tem_client(configuration: &TEMSettings) -> tem::Client {
+    let sender_email = configuration
+        .sender()
+        .expect("Invalid sender email address");
+
+    tem::Client::new(
+        configuration.base_url.clone(),
+        configuration.project_id(),
+        configuration.auth_key.clone(),
+        sender_email,
+        configuration.timeout(),
+    )
+}
+
 impl Application {
-    pub async fn build(configuration: Settings) -> Result<Self, io::Error> {
-        let pool = PgPoolOptions::new()
-            .acquire_timeout(Duration::from_secs(2))
-            .connect(configuration.database.connection_string().expose_secret())
-            .await
-            .expect("Failed to connect to PostgreSQL");
-
-        Application::build_with_pool(configuration, pool).await
-    }
-
-    pub async fn build_with_pool(configuration: Settings, pool: PgPool) -> Result<Self, io::Error> {
-        let sender_email = configuration
-            .tem
-            .sender()
-            .expect("Invalid sender email address");
-
-        let tem_client = tem::Client::new(
-            configuration.tem.base_url.clone(),
-            configuration.tem.project_id(),
-            configuration.tem.auth_key.clone(),
-            sender_email,
-            configuration.tem.timeout(),
-        );
-
+    pub async fn build_with_pool(
+        configuration: Settings,
+        pool: PgPool,
+        email_client: tem::Client,
+    ) -> Result<Self, io::Error> {
         let session_store = PgSessionStore::new(
             pool.clone(),
             CleanupConfig::new(
@@ -73,7 +77,7 @@ impl Application {
         let server = run(
             listener,
             pool.clone(),
-            tem_client,
+            email_client,
             session_store,
             ApplicationBaseUrl(configuration.application.base_url),
             HmacSecret(configuration.application.hmac_secret),
