@@ -68,7 +68,7 @@ impl Application {
 
         //
 
-        let listener = TcpListener::bind(&format!(
+        let listener = TcpListener::bind(format!(
             "{}:{}",
             configuration.application.host, configuration.application.port
         ))?;
